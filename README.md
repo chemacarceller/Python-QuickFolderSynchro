@@ -1,4 +1,4 @@
-# PYTHON-QuickFolderSynchro
+# Python-QuickFolderSynchro
 
 A fast folder synchronization utility written in python
 
