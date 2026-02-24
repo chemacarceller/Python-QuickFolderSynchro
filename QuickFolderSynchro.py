@@ -1,5 +1,13 @@
 #!/usr/bin/env python3 
 
+# QuickFolderSynchro.py
+# This script synchronizes two folders, the source and the destination, making the destination folder identical to the source folder. 
+# It copies files from the source to the destination if they do not exist in the destination or if they exist but have a different size or modification date. It also deletes files from the destination if they do not exist in the source. 
+# The script is designed to be efficient and to handle large folders with many files and directories. 
+# It also handles errors gracefully, printing error messages and exiting with appropriate error codes. 
+# The script is designed to be run from the command line, and it takes two arguments: the source directory and the destination directory. 
+# The script also creates a log file in the current directory, where it logs the actions taken and the statistics of the synchronization process. 
+# The script is designed to be run on Windows, but it should also work on other operating systems with minor modifications.     
 import sys
 import os
 import shutil
