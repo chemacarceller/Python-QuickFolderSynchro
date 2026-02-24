@@ -2,10 +2,11 @@
 
 import sys
 import os
-import subprocess
 import shutil
+import subprocess
 
-# All the code will be inside a try block, so that if any command fails, the error is displayed and the process terminates
+
+# All the code will be inside a try block, so that if any command fails, the error is displayed and the process finishes
 try :
 
     # LOGFILE is the name of the file where the log will be stored, it is created in the current directory and overwritten if it already exists
@@ -249,7 +250,7 @@ except Exception as error :
             # If the second argument contains an error code, we use it to exit; otherwise, use -1
             if len(error.args) > 1 and isinstance(error.args[1], int):
                 print("  Error Code :", error.args[1], file=file)
-                exit(error.args[1])
+                sys.exit(error.args[1])
             else :
                 print("\nNo numeric error code was found in the exception, exited with -1", file=file)
-                exit(-1)
+                sys.exit(-1)
