@@ -7,16 +7,18 @@
 # It also handles errors gracefully, printing error messages and exiting with appropriate error codes. 
 # The script is designed to be run from the command line, and it takes two arguments: the source directory and the destination directory. 
 # The script also creates a log file in the current directory, where it logs the actions taken and the statistics of the synchronization process. 
-# The script is designed to be run on Windows, but it should also work on other operating systems with minor modifications.     
+# The script is designed to be run on Windows and Linux, and it uses the same code for both platforms, since it uses the os and shutil modules, which are cross-platform.
 import sys
 import os
 import shutil
 import subprocess
 
 
-# All the code will be inside a try block, so that if any command fails, the error is displayed and the process finishes
+# All the code will be inside a try block, so that if any command fails, the error is handled eficiently, printing an error message and exiting with an appropriate error code. This way, we can be sure that any error that occurs during the execution of the script is handled gracefully, and we can provide useful information to the user about what went wrong, without crashing the script or leaving it in an inconsistent state.
+
 try :
 
+    # We initialize the variable that will hold the new environment with our custom brand name, which is used to check if the script is being executed recursively. This variable is initialized to None, and it will be assigned a value if the script is not being executed recursively, which means that we are in the parent execution of the script, and we need to create a new environment with our custom brand name to pass it to the child executions of the script. If the script is being executed recursively, this variable will remain None, since we do not need to create a new environment, since we are already in a child execution of the script, and we can use the same environment as the parent execution.
     nuevo_env = None
 
     # Our custom brand name to check if the script is being executed recursively, it is stored in an environment variable that we will check at the beginning of the script
@@ -27,12 +29,15 @@ try :
     # How we should open the log file, w for parent, a for children
     fileMode='w'
 
+    # If the environment variable is not detected, it means that we are in the parent execution of the script, and we need to create a new environment with our custom brand name to pass it to the child executions of the script. If the environment variable is detected, it means that we are in a child execution of the script, and we can use the same environment as the parent execution, since we are already in a child execution of the script, and we do not need to create a new environment.
     if not os.environ.get(VAR_RECURSION) == "1":
         # We created a copy of the current environment and added our branding.
         nuevo_env = os.environ.copy()
         nuevo_env[VAR_RECURSION] = "1"
     else :
+        # If the environment variable is detected, it means that we are in a child execution of the script, and we can use the same environment as the parent execution, since we are already in a child execution of the script, and we do not need to create a new environment. We also set the file mode to append, since we want to append to the log file instead of overwriting it, since we are in a child execution of the script, and we want to keep the log of the parent execution and all the child executions in the same log file.
         fileMode='a'
+        # We set the boolean variable to indicate that we are in a recursive execution, since we have detected the environment variable that indicates that we are in a child execution of the script, which means that we are in a recursive execution of the script, and we can use this variable to skip the confirmation of the destination directory, since we are already in a child execution of the script, and we do not want to ask for confirmation again, since it has already been confirmed in the parent execution of the script.
         isRecursiveExecution = True
 
     # LOGFILE is the name of the file where the log will be stored, it is created in the current directory and overwritten if it already exists
@@ -47,6 +52,7 @@ try :
             errorText = "Wrong arguments"
             raise Exception(errorText, errorCode)
         
+        # The source and target directories are extracted from the command line arguments, and they are stored in variables for later use. These variables are used throughout the script to refer to the source and target directories, and they are also used in the log messages to indicate which directories are being processed. This way, we can keep track of the source and target directories throughout the script, and we can provide useful information to the user about which directories are being processed at each step of the synchronization process.
         sourceDirectory = sys.argv[1]
         targetDirectory = sys.argv[2]
 
@@ -91,6 +97,7 @@ try :
 
         # The source directory does not exist.
         if not os.path.exists(sourceDirectory) :
+            # If the source directory does not exist, we print an error message and raise an exception with an appropriate error code, since the synchronization process cannot continue if the source directory does not exist, and it is important to provide useful information to the user about what went wrong, so that they can fix the problem and run the script again successfully.
             errorCode = 3
             errorText = f"The source directory {sourceDirectory} does not exist" 
             raise Exception(errorText, errorCode)
@@ -98,10 +105,12 @@ try :
         # The destination directory does not exist.
         if not os.path.exists(targetDirectory) :
             if isRecursiveExecution :
+                # If the destination directory does not exist, we print a message indicating that it does not exist and that it is being created, both in the console and in the log file, and then we create the destination directory, since it is necessary for the synchronization process to continue, and it is better to create the destination directory if it does not exist than to raise an error and stop the synchronization process, since the user may have made a mistake when entering the destination directory, and it is better to create it than to stop the process and make them fix the mistake and run the script again.
                 print(f"The destination directory {targetDirectory} does not exist, it is created")
                 print(f"\nThe destination directory {targetDirectory} does not exist, it is created", file=file)
                 os.mkdir(targetDirectory)
             else :
+                # If the destination directory does not exist, we print an error message and raise an exception with an appropriate error code, since the synchronization process cannot continue if the destination directory does not exist, and it is important to provide useful information to the user about what went wrong, so that they can fix the problem and run the script again successfully.
                 errorCode = 4
                 errorText = f"The destination directory {targetDirectory} does not exist" 
                 raise Exception(errorText, errorCode)
@@ -119,7 +128,6 @@ try :
 
                 # Incrementing the total number of files and directories found in the source directory, including directories, which will be processed later in the script. This variable is used for statistics at the end of the script.
                 foundFilesAndDir += 1
-
 
                 # For each SOURCE file, the name, size, and modification date are extracted.
                 sourceName = fileItem
@@ -147,7 +155,8 @@ try :
                     foundFiles += 1
 
                     # If the file exists in the destination directory, we check if it has the same size and modification date as the source file. If it does, it is not copied. If it does not, it is copied. In both cases, a message is printed indicating what happened, and the corresponding statistics are updated.
-                    if os.path.exists(targetPath) :                        
+                    if os.path.exists(targetPath) :   
+                        # If the file exists in the destination directory, we check if it has the same size and modification date as the source file. If it does, it is not copied. If it does not, it is copied. In both cases, a message is printed indicating what happened, and the corresponding statistics are updated.                     
                         targetFileSize = os.path.getsize(targetPath)
                         targetFileModificationTime = os.path.getmtime(targetPath)
 
@@ -157,11 +166,13 @@ try :
                             print(f"{sourceDirectory.upper()} : File {sourcePath} already exists in the destination directory with the same size and modification time, it is not copied", file=file)
                             notCopiedFoundFiles += 1
                         else :
+                            # The file exists in the destination directory but has a different size or modification date, it is copied, and a message is printed indicating that it already exists but with different size or modification date, so it is copied. In both cases, the corresponding statistics are updated.
                             print(f"{sourceDirectory.upper()} : File {sourcePath} already exists in the destination directory but with different size or modification time, it is copied")
                             print(f"{sourceDirectory.upper()} : File {sourcePath} already exists in the destination directory but with different size or modification time, it is copied", file=file)
                             shutil.copy2(sourcePath, targetPath)
                             copiedFoundFiles += 1
                     else :
+                        # The file does not exist in the destination directory, it is copied, and a message is printed indicating that it does not exist in the destination directory, so it is copied. In both cases, the corresponding statistics are updated.
                         print(f"{sourceDirectory.upper()} : File {sourcePath} does not exist in the destination directory, it is copied")
                         print(f"{sourceDirectory.upper()} : File {sourcePath} does not exist in the destination directory, it is copied", file=file)
                         shutil.copy2(sourcePath, targetPath)
@@ -189,8 +200,7 @@ try :
             #print(f"There are no files in {targetDirectory} : " )
             print(f"There are no files in {targetDirectory} : ", file=file )  
         else:
-
-        # For each file item in the destination directory, the name is extracted, and it is checked if it exists in the source directory. If it does not exist, it is deleted. If it exists, it is not deleted. In both cases, a message is printed indicating what happened, and the corresponding statistics are updated.
+            # For each file item in the destination directory, the name is extracted, and it is checked if it exists in the source directory. If it does not exist, it is deleted. If it exists, it is not deleted. In both cases, a message is printed indicating what happened, and the corresponding statistics are updated.
             for fileItem in os.listdir(targetDirectory) :
 
                 # Printing a message indicating that the file is being processed, both in the console and in the log file.
@@ -260,6 +270,7 @@ try :
     # The directory exists in Destination, already verified
     # This is done after processing the files, so we are sure that the directories in the destination directory that do not exist in the source directory have already been deleted, so we can be sure that all the directories that exist in the destination directory also exist in the source directory, and we can process them without worrying about deleting them later. If we did this before processing the files, we would have to worry about deleting directories that do not exist in the source directory but exist in the destination directory, which would complicate the script and make it less efficient.
     # The recursive execution of the script for the directories is done at the end of the script, so we have already processed all the files in the source and destination directories, and we can be sure that all the directories that exist in the destination directory also exist in the source directory, so we can process them without worrying about deleting them later. If we did this before processing the files, we would have to worry about deleting directories that do not exist in the source directory but exist in the destination directory, which would complicate the script and make it less efficient.           
+    # It has been taken outside the with statement because we want to be sure that the log file is closed before we start the recursive execution of the script for the directories, since the recursive execution of the script for the directories will also write to the log file, and if we do not close the log file before starting the recursive execution of the script for the directories, we may have problems with concurrent access to the log file, which could cause errors or inconsistencies in the log file. By closing the log file before starting the recursive execution of the script for the directories, we can be sure that there are no problems with concurrent access to the log file, and we can be sure that all the log messages are written correctly to the log file.
     for fileItem in os.listdir(sourceDirectory) :
 
         # For each SOURCE file, the name is extracted, and it is checked if it is a directory. If it is a directory, the script is called recursively for that directory. If it is not a directory, it has already been processed in the previous steps of the script, so it is skipped.
@@ -283,6 +294,9 @@ try :
                 os.fsync(file.fileno())
 
             # We call the script recursively for the directory blocking the execution until it finishes, so that we can be sure that the synchronization of the directory is finished before continuing with the next directory, and we can be sure that the statistics are printed at the end of the script, and we do not have to worry about printing them for each recursive execution, which would complicate the script and make it less efficient. If we did this without blocking the execution, we would have to worry about printing the statistics for each recursive execution, which would complicate the script and make it less efficient.
+            # The call to subprocess.run is done outside the with statement, so we can be sure that the log file is closed before we start the recursive execution of the script for the directories, since the recursive execution of the script for the directories will also write to the log file, and if we do not close the log file before starting the recursive execution of the script for the directories, we may have problems with concurrent access to the log file, which could cause errors or inconsistencies in the log file. By closing the log file before starting the recursive execution of the script for the directories, we can be sure that there are no problems with concurrent access to the log file, and we can be sure that all the log messages are written correctly to the log file.
+            # and in a new environment with our custom brand name, so that we can check if the script is being executed recursively in the child execution, and we can skip the confirmation of the destination directory and the printing of the statistics in the child execution, since they are only printed at the end of the script, and we want to print them only once at the end of the script, not for each recursive execution.
+            # Depending on whether the script is running as an executable (PyInstaller) or as a normal .py script, we call it with the appropriate arguments. If it is running as an executable, we call it with sys.executable, which is the path to the executable, and the source and target paths as arguments. If it is running as a normal .py script, we call it with sys.executable, which is the path to the Python interpreter, and sys.argv[0], which is the path to the script, and the source and target paths as arguments. In both cases, we pass the new environment with our custom brand name to indicate that it is a recursive execution, so that we can skip the confirmation of the destination directory and the printing of the statistics in the child execution.
             if getattr(sys, 'frozen', False):
                 # It is running as an executable (PyInstaller)
                 subprocess.run([sys.executable, sourcePath, targetPath], env=nuevo_env)
