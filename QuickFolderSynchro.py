@@ -8,10 +8,92 @@
 # The script is designed to be run from the command line, and it takes two arguments: the source directory and the destination directory. 
 # The script also creates a log file in the current directory, where it logs the actions taken and the statistics of the synchronization process. 
 # The script is designed to be run on Windows and Linux, and it uses the same code for both platforms, since it uses the os and shutil modules, which are cross-platform.
+
 import sys
 import os
 import shutil
 import subprocess
+import signal
+import psutil
+
+
+
+# Function to handle the signals, it is called when a signal is received, and it is responsible for cleaning up the child processes and saving the logs before exiting. 
+# The function takes three arguments: the signal number, the frame, and a boolean variable that indicates if the script is being executed recursively. 
+# If the script is not being executed recursively, it means that we are in the parent execution of the script, and we need to clean up the child processes and save the logs before exiting. If the script is being executed recursively, it means that we are in a child execution of the script, and we do not need to clean up the child processes or save the logs, since we are already in a child execution of the script, and we can just exit without doing anything else.
+
+def signal_handler(sig, frame, isRecursiveExecution):
+
+    # Variable to check if the script is being executed in an interactive terminal, which is used to determine if we need to clean up the child processes when a SIGINT signal is received, since if the script is being executed in an interactive terminal, it means that the user is pressing Ctrl+C to send a SIGINT signal
+    is_interactive = sys.stdin.isatty()
+
+    if not isRecursiveExecution :
+
+        # We print a message indicating that a signal has been received and that we are starting the cleanup of the child processes, both in the console and in the log file. We also print a message indicating that we are saving the logs and exiting, both in the console and in the log file. This way, we can provide useful information to the user about what is happening when a signal is received, and we can also keep a record of the signals received and the actions taken in the log file, which can be useful for debugging and for understanding the behavior of the script when it receives signals.
+        print(f"\nSignal {signal.Signals(sig).name} ({sig}) received : Starting the children's cleanup...")
+        print(f"\nSignal {signal.Signals(sig).name} ({sig}) received : Saving logs and exiting...")
+    
+        # This code block is responsible for cleaning up the child processes, it is executed when a signal is received, and it is responsible for terminating the child processes gracefully, and if they do not terminate within a certain time, it forces their termination. This way, we can be sure that all the child processes are terminated before exiting the script, and we can avoid leaving any orphan processes running in the background after the script has exited. This is important to prevent resource leaks and to ensure that the system is not left in an inconsistent state after the script has exited.
+        try:
+
+            # Only for SIGTERM or others, since SIGINT is usually sent by the user pressing Ctrl+C and the processes are cleaned up from farest child to the parent automatically by this function once they receive the CTRL+C command, so we do not need to clean them up manually
+            # Or SIGINT if we are not receiving a CTRL+C
+            if sig != signal.SIGINT or ( sig == signal.SIGINT and not is_interactive ) :
+
+                # Geting the current process, which is the parent process of all the child processes that we want to clean up, since we are in the parent execution of the script, and we want to clean up all the child processes that have been spawned by this parent process, so we can use the current process as the reference to find all the child processes that we want to clean up. If we were in a child execution of the script, we would not want to clean up the child processes, since we are already in a child execution of the script, and we do not want to terminate ourselves or our siblings, since they may still be doing important work, and we do not want to interrupt them unnecessarily.
+                father_process = psutil.Process()
+
+                # Geting all the child processes of the current process, which are the processes that we want to clean up, since they are the processes that have been spawned by the current process, and they are the processes that we want to terminate gracefully when a signal is received, so we can use the current process as the reference to find all the child processes that we want to clean up. If we were in a child execution of the script, we would not want to clean up the child processes, since we are already in a child execution of the script, and we do not want to terminate ourselves or our siblings, since they may still be doing important work, and we do not want to interrupt them unnecessarily.
+                children_processes = father_process.children(recursive=True)
+
+                # We print a message indicating the number of child processes that we are going to clean up, both in the console and in the log file. This way, we can provide useful information to the user about how many child processes are being cleaned up when a signal is received, and we can also keep a record of the number of child processes cleaned up in the log file, which can be useful for debugging and for understanding the behavior of the script when it receives signals.
+                for child_process in children_processes:
+                    if child_process.is_alive() :
+                        print(f"Ending child PID: {child_process.pid}")
+                        child_process.terminate() 
+
+                # Waiting for the child processes to terminate gracefully, with a timeout of 3 seconds, since we want to give them a chance to clean up and exit gracefully, but we do not want to wait indefinitely for them to terminate, since they may be stuck or may not respond to the termination signal, and we do not want to leave the script hanging indefinitely waiting for them to terminate. If any child process does not terminate within the timeout, we will force its termination in the next step.
+                gone, alive = psutil.wait_procs(children_processes, timeout=3)
+
+                # For any child process that is still alive after the timeout, we print a message indicating that we are forcing its closure, both in the console and in the log file, and then we force its termination using the kill method, which sends a SIGKILL signal on Linux or calls TerminateProcess on Windows, which forces the process to terminate immediately without giving it a chance to clean up or exit gracefully. This way, we can be sure that all the child processes are terminated before exiting the script, and we can avoid leaving any orphan processes running in the background after the script has exited. This is important to prevent resource leaks and to ensure that the system is not left in an inconsistent state after the script has exited.
+                for straggler in alive:
+                    print(f"Forcing closure of rebellious child : {straggler.pid}")
+                    straggler.kill()
+
+        # If the current process does not exist, which can happen if the signal is received after the parent process has already terminated, we catch the NoSuchProcess exception, and we just exit with the appropriate code, since there are no child processes to clean up, and we do not need to save any logs, since the parent process has already terminated, and we can just exit without doing anything else. This way, we can handle the case where the signal is received after the parent process has already terminated gracefully, without raising an unhandled exception or leaving the script in an inconsistent state.
+        except psutil.NoSuchProcess:
+
+            # Just exit with the appropriate code, since there are no child processes to clean up, and we do not need to save any logs, since the parent process has already terminated, and we can just exit without doing anything else. This way, we can handle the case where the signal is received after the parent process has already terminated gracefully, without raising an unhandled exception or leaving the script in an inconsistent state.
+            code = 128 + sig
+            sys.exit(code)
+    
+        try :
+            
+            # We print a message indicating that we are saving the logs and exiting, both in the console and in the log file. This way, we can provide useful information to the user about what is happening when a signal is received, and we can also keep a record of the signals received and the actions taken in the log file, which can be useful for debugging and for understanding the behavior of the script when it receives signals.
+            with open(LOGFILE, 'a') as file :
+                print(f"\nSignal {sig} received : Starting the children's cleanup...", file=file)
+                print(f"\nSignal {sig} received : Saving logs and exiting...", file=file)
+
+        # If any exception occurs while trying to save the logs, we catch it and print an error message indicating that an error was detected while trying to save the logs, and we also print the error code if it is available, or a message indicating that no numeric error code was found in the exception. This way, we can provide useful information to the user about what went wrong when trying to save the logs, and we can also keep a record of the errors encountered in the log file, which can be useful for debugging and for understanding the behavior of the script when it receives signals.
+        except Exception as error :
+        
+            # We print the error message; all exceptions have this field.
+            print("Error detected : ", error.args[0], end='')
+            
+            # If the second argument contains an error code, we display it; otherwise, we display a message indicating the error.
+            if len(error.args) > 1 and isinstance(error.args[1], int):
+                print("  Error Code :", error.args[1])
+            else :
+                print("\nNo numeric error code was found in the exception, exited with -1")
+
+            # Just exit with the appropriate code, since we have already printed the error message, and we do not need to save any logs, since we are already handling the error gracefully, and we can just exit without doing anything else. This way, we can handle the case where an error occurs while trying to save the logs gracefully, without raising an unhandled exception or leaving the script in an inconsistent state.
+            code = 128 + sig
+            sys.exit(code)
+
+
+    # Just exit with the appropriate code, since we have already printed the message about saving the logs and exiting, and we do not need to save any logs, since we are already handling the signal gracefully, and we can just exit without doing anything else. This way, we can handle the case where a signal is received gracefully, without raising an unhandled exception or leaving the script in an inconsistent state.
+    code = 128 + sig
+    sys.exit(code)
 
 
 # All the code will be inside a try block, so that if any command fails, the error is handled eficiently, printing an error message and exiting with an appropriate error code. This way, we can be sure that any error that occurs during the execution of the script is handled gracefully, and we can provide useful information to the user about what went wrong, without crashing the script or leaving it in an inconsistent state.
@@ -40,6 +122,9 @@ try :
         # We set the boolean variable to indicate that we are in a recursive execution, since we have detected the environment variable that indicates that we are in a child execution of the script, which means that we are in a recursive execution of the script, and we can use this variable to skip the confirmation of the destination directory, since we are already in a child execution of the script, and we do not want to ask for confirmation again, since it has already been confirmed in the parent execution of the script.
         isRecursiveExecution = True
 
+    signal.signal(signal.SIGTERM, lambda s, f: signal_handler(s, f, isRecursiveExecution))
+    signal.signal(signal.SIGINT, lambda s, f: signal_handler(s, f, isRecursiveExecution))
+
     # LOGFILE is the name of the file where the log will be stored, it is created in the current directory and overwritten if it already exists
     LOGFILE = "QuickFolderSynchro.log"
 
@@ -64,6 +149,7 @@ try :
 
         # It is detected that this is not a recursive execution
         if not isRecursiveExecution :
+
             # We request confirmation that the destination directory is correct.
             resp = input(f"Confirm that {targetDirectory} is correct? Answer Yes to continue, No to cancel : ");
             while resp != "Yes" :
@@ -306,15 +392,17 @@ try :
 
 
 except Exception as error :
-        # We print the error message; all exceptions have this field.
-        print("Error detected : ", error.args[0], end='')
-            
-        # If the second argument contains an error code, we display it; otherwise, we display a message indicating the error.
-        if len(error.args) > 1 and isinstance(error.args[1], int):
-            print("  Error Code :", error.args[1])
-        else :
-            print("\nNo numeric error code was found in the exception, exited with -1")
 
+    # We print the error message; all exceptions have this field.
+    print("Error detected : ", error.args[0], end='')
+            
+    # If the second argument contains an error code, we display it; otherwise, we display a message indicating the error.
+    if len(error.args) > 1 and isinstance(error.args[1], int):
+        print("  Error Code :", error.args[1])
+    else :
+        print("\nNo numeric error code was found in the exception, exited with -1")
+
+    try :
         # We added error messages to the file
         with open(LOGFILE, 'a') as file :
 
@@ -328,3 +416,14 @@ except Exception as error :
             else :
                 print("\nNo numeric error code was found in the exception, exited with -1", file=file)
                 sys.exit(-1)
+
+    except Exception as error :
+
+        # We print the error message; all exceptions have this field.
+        print("Error detected : ", error.args[0], end='')
+            
+        # If the second argument contains an error code, we display it; otherwise, we display a message indicating the error.
+        if len(error.args) > 1 and isinstance(error.args[1], int):
+            print("  Error Code :", error.args[1])
+        else :
+            print("\nNo numeric error code was found in the exception, exited with -1")
