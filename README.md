@@ -13,7 +13,11 @@ The script performs the following steps:
  - Check the list of regular files and directories different from the Destination that are not in the Source and delete them.
  - For each Source directory, recursively run the script.
 
-The QuickFolderSynchro.run file is the Linux executable obtained from PyInstaller. It's not strictly necessary since the Python script has the shellbang that makes it inherently executable. The only advantage of the .run file over the .py file is that the source code isn't visible when editing it.
+The QuickFolderSynchro.run file is the Linux executable compiled by Niutka. It's not strictly necessary since the Python script has the shellbang that makes it inherently executable. The only advantage of the .run file over the .py file is that the source code isn't visible when editing it.
+
+For Windows, it could be run using    python QuickFolderSynchto.py   (since shellbang doesn't work on Windows).
+
+However, the script has also been compiled using Niutka, creating both an .exe file (using the --onefile option) and a .zip file (using the --standalone option). The .zip file must be extracted to the desired folder before it can be run.
 
 ======================================================================
 
@@ -30,5 +34,11 @@ El script realiza los siguientes pasos:
 - Comprueba la lista de archivos y directorios normales, distintos del destino, que no están en el origen y los elimina.
 - Ejecuta el script recursivamente para cada directorio de origen.
 
-El fichero QuickFolderSynchro.run es el ejecutable para linux obtenido a partir de pyinstaller, realmente no es necesario ya que el script de python tiene el shellbang que lo hace intrinsecamente ejecutable, la única ventaja del fichero .run respecto al fichero .py es que al editarlo no aparace el codigo fuente
+El fichero QuickFolderSynchro.run es el ejecutable para linux compilado con Niutka, realmente no es necesario ya que el script de python tiene el shellbang que lo hace intrinsecamente ejecutable, la única ventaja del fichero .run respecto al fichero .py es que al editarlo no aparace el codigo fuente
+
+Para windows se podría ejecutar mediante     python QuickFolderSynchto.py    (ya que el shellbang no funciona en windows)
+
+Sin embargo, también mediante Niutka se ha compilado el script y se ha creado un .exe (opcion --onefile) y un .zip (opcion --standalone), este ultimo debe descomprimirse en la carpeta deseada para poder ejecutarlo.
+
+
 
