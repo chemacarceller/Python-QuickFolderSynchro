@@ -81,11 +81,11 @@ def signal_handler(sig, frame, isRecursiveExecution, sourceDirectory):
     except Exception as error :
         
         # We print the error message; all exceptions have this field.
-        os.write(1, bytes("Error detected : " + str(error.args[0]),'utf-8'))
+        os.write(1, bytes("Error detected : " + error.strerror),'utf-8')
             
         # If the second argument contains an error code, we display it; otherwise, we display a message indicating the error.
-        if len(error.args) > 1 and isinstance(error.args[1], int):
-            os.write(1, bytes("  Error Code :" + str(error.args[1]),'utf-8'))
+        if isinstance(error.errno, int):
+            os.write(1, bytes("  Error Code :" + str(error.errno)),'utf-8')
         else :
             os.write(1, b"\nNo numeric error code was found in the exception, exited with -1",'utf-8')
 
@@ -427,11 +427,12 @@ try :
 except Exception as error :
 
     # We print the error message; all exceptions have this field.
-    print("Error detected : ", error.args[0], end='')
+    print("Error detected : ", error.strerror, end='')
+    print(error, end='')
             
     # If the second argument contains an error code, we display it; otherwise, we display a message indicating the error.
-    if len(error.args) > 1 and isinstance(error.args[1], int):
-        print("  Error Code :", error.args[1])
+    if isinstance(error.errno, int):
+        print("  Error Code :", str(error.errno))
     else :
         print("\nNo numeric error code was found in the exception, exited with -1")
 
@@ -440,12 +441,13 @@ except Exception as error :
         with open(LOGFILE, 'a') as file :
 
             # Append errorText to file
-            file.write(f"Error detected : {error.args[0]}")
+            file.write(f"Error detected : {error.strerror}")
+            file.write(str(error))
 
             # If the second argument contains an error code, we use it to exit; otherwise, use -1
-            if len(error.args) > 1 and isinstance(error.args[1], int):
-                file.write(f"  Error Code : {error.args[1]}\n")
-                sys.exit(error.args[1])
+            if isinstance(error.errno, int):
+                file.write(f"  Error Code : {str(error.errno)}\n")
+                sys.exit(error.errno)
             else :
                 file.write("\nNo numeric error code was found in the exception, exited with -1\n")
                 sys.exit(-1)
@@ -454,13 +456,14 @@ except Exception as error :
 
         # If it cannot print in the file
         # We print the error message
-        print("Error detected : ", error.args[0], end='')
+        print("Error detected : ", error.strerror, end='')
+        print(error, end='')
             
         # If the second argument contains an error code, we display it; otherwise, we display a message indicating the error.
         # And finally we exit
-        if len(error.args) > 1 and isinstance(error.args[1], int):
-            print("  Error Code :", error.args[1])
-            sys.exit(error.args[1])
+        if isinstance(error.errno, int):
+            print("  Error Code :", str(error.errno))
+            sys.exit(error.errno)
         else :
             print("\nNo numeric error code was found in the exception, exited with -1")
             sys.exit(-1)
