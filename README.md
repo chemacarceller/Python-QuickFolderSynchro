@@ -19,6 +19,8 @@ For Windows, it could be run using    python QuickFolderSynchto.py   (since shel
 
 However, the script has also been compiled using Niutka, creating both an .exe file (using the --onefile option) and a .zip file (using the --standalone option). The .zip file must be extracted to the desired folder before it can be run.
 
+The Pro version is an optimized version because it passes the code for accessing log files to be developed in a C++ module that is accessible from the Python code.
+
 ======================================================================
 
 Utilidad de sincronización rápida de carpetas escrita en python
@@ -39,6 +41,8 @@ El fichero QuickFolderSynchro.run es el ejecutable para linux compilado con Niut
 Para windows se podría ejecutar mediante     python QuickFolderSynchto.py    (ya que el shellbang no funciona en windows)
 
 Sin embargo, también mediante Niutka se ha compilado el script y se ha creado un .exe (opcion --onefile) y un .zip (opcion --standalone), este ultimo debe descomprimirse en la carpeta deseada para poder ejecutarlo.
+
+La version Pro es una version optimizada porque se pasa el codigo de acceso a ficheros de logs a ser desarrollado en un modulo de C++ que es accesible desde el código de Python
 
 
 
