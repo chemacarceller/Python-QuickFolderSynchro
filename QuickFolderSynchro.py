@@ -17,7 +17,7 @@ The script is designed to be run on Windows and Linux, and it uses the same code
 # The script also creates a log file in the current directory, where it logs the actions taken and the statistics of the synchronization process. 
 # The script is designed to be run on Windows and Linux, and it uses the same code for both platforms, since it uses the os and shutil modules, which are cross-platform.
 
-
+# Imports...  psutil must be installed by pip install psutil
 import sys
 import os
 import shutil
@@ -27,7 +27,7 @@ import psutil
 from pathlib import Path
 
 
-#Base exception for application errors.
+#Base exception for the application errors.
 class AppError(Exception):
     """Base exception for application errors."""
 
@@ -43,7 +43,7 @@ class AppError(Exception):
         return f"AppError: {self.message}"
 
 
-# AppError handler. It exit the app
+# AppError handler. It calls the general exception handler and exits the app
 def AppError_handler(error) :
     """ AppError handler. It exit the app """
 
@@ -68,6 +68,7 @@ def general_exception_handler(error) :
 
     try :
         
+        # same info in the LOGERRORFILE file
         with open(LOGERRORFILE, 'a') as file :
 
             # We print the error message on the file
@@ -77,6 +78,7 @@ def general_exception_handler(error) :
             if isinstance(error.errno, int): file.write(f" Error Code : {str(error.errno)}\n")
             else : file.write("\nNo numeric error code was found in the exception, exited with -1\n")
 
+    # case it is not possible to write the file
     except Exception as error :
 
         # If it cannot print in the file We print the error message
@@ -87,10 +89,11 @@ def general_exception_handler(error) :
         else : print("\nNo numeric error code was found in the exception, exited with -1")
 
 
+
 # Function to handle the signals, it is called when a signal is received, and it is responsible for cleaning up the child processes and saving the logs before exiting. 
 # The function takes three arguments: the signal number, the frame, and a boolean variable that indicates if the script is being executed recursively. 
 # If the script is not being executed recursively, it means that we are in the parent execution of the script, and we need to clean up the child processes and save the logs before exiting. If the script is being executed recursively, it means that we are in a child execution of the script, and we do not need to clean up the child processes or save the logs, since we are already in a child execution of the script, and we can just exit without doing anything else.
-
+# By pressing CTRL+C all the process receive the signal but the order is undefined, that This means that all processes will stop, but without a specific order.
 def signal_handler(sig, frame, isRecursiveExecution, sourceDirectory):
 
     # Disables the default behavior of the SIGINT signal, so that it is not captured twice 
@@ -108,6 +111,7 @@ def signal_handler(sig, frame, isRecursiveExecution, sourceDirectory):
     # If we are in the parent process...
     # Only for SIGTERM or others, since SIGINT is usually sent by the user pressing Ctrl+C and the processes are cleaned up from farest child to the parent automatically by this function once they receive the CTRL+C command, so we do not need to clean them up manually
     # Or SIGINT if we are not receiving a CTRL+C
+    # If a signal 2 or 15 is sent with the kill command, all child processes of that process will be eliminated, and the message will only appear for the process that received the signal, since the signal is not propagated, they are simply eliminated; processes above are not affected.
     if not isRecursiveExecution and (sig != signal.SIGINT or ( sig == signal.SIGINT and not is_interactive )) :
     
         # This code block is responsible for cleaning up the child processes, it is executed when a signal is received, and it is responsible for terminating the child processes gracefully, and if they do not terminate within a certain time, it forces their termination. 
@@ -206,10 +210,10 @@ try :
         sourceDirectory = sys.argv[1]
         targetDirectory = sys.argv[2]
 
-        # Showing the source and target directories, both in the console and in the log file 
-        #print("SOURCE Directory :", sourceDirectory)
+        # Showing the source and target directories
+        # print("SOURCE Directory :", sourceDirectory)
         file.write("SOURCE Directory : " + sourceDirectory + "\n")
-        #print("TARGET Directory :", targetDirectory)
+        # print("TARGET Directory :", targetDirectory)
         file.write("TARGET Directory : " + targetDirectory + "\n")
 
         # Setting the signal handler function, passing him whether we are in the father or in one of its child processes and the sourceDirectory managed by the process
@@ -227,6 +231,7 @@ try :
                     errorText = "Aborted by the user does not confirm that the destination directory is correct."
                     raise AppError(errorText, errorCode)
                 resp = input(f"Confirm that {targetDirectory} is correct? Answer Yes to continue, No to cancel : ")
+
 
         # Variables for task statistics
 
@@ -274,7 +279,7 @@ try :
                 errorText = f"The destination directory {targetDirectory} does not exist" 
                 raise AppError(errorText, errorCode)
         
-        #print(f"\nSEARCHING FOR FILES IN {sourceDirectory} :" )
+        # print(f"\nSEARCHING FOR FILES IN {sourceDirectory} :" )
         file.write(f"\nSEARCHING FOR FILES IN {sourceDirectory} : \n")
 
         # If there are no files in the source directory, we print a message and skip to the next step, which is to check the destination directory for files that do not exist in the source directory. 
@@ -382,14 +387,14 @@ try :
             
          
         # The destination is traversed to remove files that do not exist in the source.
-        #print(f"\nSEARCHING FOR FILES IN {targetDirectory} : " )
+        # print(f"\nSEARCHING FOR FILES IN {targetDirectory} : " )
         file.write(f"\nSEARCHING FOR FILES IN {targetDirectory} : \n")
 
         # If there are no files in the destination directory, we print a message and skip to the end of the script, which is to print the statistics. 
         # Otherwise, we continue with the synchronization process.
         if len(os.listdir(targetDirectory)) == 0 :
 
-            #print(f"There are no files in {targetDirectory} : " )
+            # print(f"There are no files in {targetDirectory} : " )
             file.write(f"There are no files in {targetDirectory} : \n")  
 
         else:
@@ -410,13 +415,13 @@ try :
                     # This variable is used for statistics at the end of the script.
                     targetFoundFilesAndDir += 1
 
+                    # For each TARGET file, the name is extracted
+                    targetName = fileItem
+                    targetPath = os.path.join(targetDirectory, targetName)                    
+
                     # Changing variables for statistics
                     if not os.path.isdir(targetPath) : targetFoundFiles += 1
                     else : targetFoundDirectories += 1
-
-                    # For each TARGET file, the name is extracted
-                    targetName = fileItem
-                    targetPath = os.path.join(targetDirectory, targetName)
 
                     # The path of the file in the source directory is constructed...
                     sourcePath = os.path.join(sourceDirectory, targetName)
@@ -491,14 +496,14 @@ try :
             # If it is not a directory, it has already been processed in the previous steps of the script, so it is skipped.
             if os.path.isdir(sourcePath) :
 
+                # The path of the directory in the destination directory is constructed
+                targetPath = os.path.join(targetDirectory, sourceName)
+
                 with open(LOGFILE, 'a') as file :
     
                     # The next directory is going to be processed
                     #print(f"The directory {sourcePath} is going to be processed")
                     file.write(f"\nThe directory {sourcePath} is going to be processed\n")
-
-                    # The path of the directory in the destination directory is constructed
-                    targetPath = os.path.join(targetDirectory, sourceName)
 
                     # Important: Empty the buffer before launching the child
                     file.flush() 
