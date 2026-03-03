@@ -195,6 +195,35 @@ try :
     # We set the boolean variable to indicate that we are in a recursive execution
     else : isRecursiveExecution = True
 
+    # The source and target directories are extracted from the command line arguments, and they are stored in variables for later use. 
+    # These variables are used throughout the script to refer to the source and target directories, and they are also used in the log messages to indicate which directories are being processed. 
+    # This way, we can keep track of the source and target directories throughout the script, and we can provide useful information to the user about which directories are being processed at each step of the synchronization process.
+    sourceDirectory = sys.argv[1]
+    targetDirectory = sys.argv[2]
+
+
+    # Variables for task statistics
+
+    # In source Directory
+    foundFilesAndDir=0
+    foundFiles=0
+    foundDirectories=0
+
+    # In source Directory and target directory
+    copiedFoundFiles=0
+    notCopiedFoundFiles=0
+    copiedNotFoundFiles=0
+
+    # In target Directory
+    targetFoundFilesAndDir=0
+    targetFoundFiles=0
+    targetFoundDirectories=0
+
+    # In target Directory but not in source Directory
+    targetFoundFilesNotInSource=0
+    targetFoundDirNotInSource=0
+    targetDeletedFilesAndDir=0
+
     #The LOGFILE file is opened for writing during execution
     with open(LOGFILE, 'a') as file :
 
@@ -203,12 +232,6 @@ try :
             errorCode = 1
             errorText = "Wrong arguments"
             raise AppError(errorText, errorCode)
-        
-        # The source and target directories are extracted from the command line arguments, and they are stored in variables for later use. 
-        # These variables are used throughout the script to refer to the source and target directories, and they are also used in the log messages to indicate which directories are being processed. 
-        # This way, we can keep track of the source and target directories throughout the script, and we can provide useful information to the user about which directories are being processed at each step of the synchronization process.
-        sourceDirectory = sys.argv[1]
-        targetDirectory = sys.argv[2]
 
         # Showing the source and target directories
         # print("SOURCE Directory :", sourceDirectory)
@@ -231,29 +254,6 @@ try :
                     errorText = "Aborted by the user does not confirm that the destination directory is correct."
                     raise AppError(errorText, errorCode)
                 resp = input(f"Confirm that {targetDirectory} is correct? Answer Yes to continue, No to cancel : ")
-
-
-        # Variables for task statistics
-
-        # In source Directory
-        foundFilesAndDir=0
-        foundFiles=0
-        foundDirectories=0
-
-        # In source Directory and target directory
-        copiedFoundFiles=0
-        notCopiedFoundFiles=0
-        copiedNotFoundFiles=0
-
-        # In target Directory
-        targetFoundFilesAndDir=0
-        targetFoundFiles=0
-        targetFoundDirectories=0
-
-        # In target Directory but not in source Directory
-        targetFoundFilesNotInSource=0
-        targetFoundDirNotInSource=0
-        targetDeletedFilesAndDir=0
 
         # The source directory does not exist.
         if not os.path.exists(sourceDirectory) :
@@ -492,12 +492,12 @@ try :
             sourceName = fileItem
             sourcePath = os.path.join(sourceDirectory, sourceName)
 
+            # The path of the directory in the destination directory is constructed
+            targetPath = os.path.join(targetDirectory, sourceName)
+
             # If the file is a directory, we call the script recursively for that directory. 
             # If it is not a directory, it has already been processed in the previous steps of the script, so it is skipped.
             if os.path.isdir(sourcePath) :
-
-                # The path of the directory in the destination directory is constructed
-                targetPath = os.path.join(targetDirectory, sourceName)
 
                 with open(LOGFILE, 'a') as file :
     
