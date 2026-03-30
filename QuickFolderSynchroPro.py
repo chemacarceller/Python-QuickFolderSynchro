@@ -73,11 +73,11 @@ def general_exception_handler(error) :
         # same info in the LOGERRORFILE file        
 
         # We print the error message on the file
-        error_logger.write_line(f"Error detected : {str(error)}")
+        logger.LOG_ERROR(f"Error detected : {str(error)}")
 
         # If there is an error code, we print it; otherwise, we print a message indicating there isn't any.
-        if isinstance(error.errno, int): error_logger.write_line(f" Error Code : {str(error.errno)}")
-        else : error_logger.write_line("No numeric error code was found in the exception, exited with -1")
+        if isinstance(error.errno, int): logger.LOG_ERROR(f" Error Code : {str(error.errno)}")
+        else : logger.LOG_ERROR("No numeric error code was found in the exception, exited with -1")
 
     # case it is not possible to write the file
     except Exception as error :
@@ -148,7 +148,7 @@ def signal_handler(sig, frame, isRecursiveExecution, sourceDirectory):
     try :
             
         # We print the message in the log file indicating that we are saving the logs and exiting
-        error_logger.write_line(f"Source Directory : {sourceDirectory} --> Signal {signal.Signals(sig).name} ({sig}) received : Starting the children's cleanup on the parent process and saving logs and exiting on each process...")
+        logger.LOG_WARN(f"Source Directory : {sourceDirectory} --> Signal {signal.Signals(sig).name} ({sig}) received : Starting the children's cleanup on the parent process and saving logs and exiting on each process...")
 
     # If any exception occurs while trying to save the logs, we catch it and print an error message indicating that an error was detected while trying to save the logs
     # Calling the general exception handler
@@ -166,14 +166,7 @@ def signal_handler(sig, frame, isRecursiveExecution, sourceDirectory):
 # All the code will be inside a try block, so that if any command fails, the error is handled eficiently
 try :
 
-    # LOGFILE and LOGERRORFILE are the name of the file where the logs will be stored, it is created in the current directory and overwritten if it already exists
-    # Taking from the script name changing the extension to .log; the error file adds the string Error to the file name
-    base_name, _ = os.path.splitext(Path(sys.argv[0]))
-    LOGFILE = f"{base_name}.log"
-    LOGERRORFILE = f"{base_name}Error.log"
-
-    logger = LogFileWriter.Writer(LOGFILE)
-    error_logger = LogFileWriter.Writer(LOGERRORFILE)
+    logger = LogFileWriter.Writer.get_instance()
 
     # We initialize the variable that will hold the new environment with our custom brand name, which is used to check if the script is being executed recursively. 
     new_env = None
@@ -207,11 +200,8 @@ try :
     targetDirectory = sys.argv[2]
 
     # Showing the source and target directories
-    # print("SOURCE Directory :", sourceDirectory)
-
-    logger.write_line("SOURCE Directory : " + sourceDirectory)
-    # print("TARGET Directory :", targetDirectory)
-    logger.write_line("TARGET Directory : " + targetDirectory)
+    logger.LOG_INFO("SOURCE Directory : " + sourceDirectory, False)
+    logger.LOG_INFO("TARGET Directory : " + targetDirectory, False)
 
     # Setting the signal handler function, passing him whether we are in the father or in one of its child processes and the sourceDirectory managed by the process
     signal.signal(signal.SIGTERM, lambda s, f: signal_handler(s, f, isRecursiveExecution, sourceDirectory))
@@ -265,8 +255,7 @@ try :
         if isRecursiveExecution :
 
             # If the destination directory does not exist, we print a message indicating that it does not exist and that it is being created, both in the console and in the log file, and then we create the destination directory, since it is necessary for the synchronization process to continue, and it is better to create the destination directory if it does not exist than to raise an error and stop the synchronization process
-            print(f"The destination directory {targetDirectory} does not exist, it is created")
-            logger.write_line(f"The destination directory {targetDirectory} does not exist, it is created")
+            logger.LOG_INFO(f"The destination directory {targetDirectory} does not exist, it is created")
             os.mkdir(targetDirectory)
 
         else :
@@ -275,16 +264,13 @@ try :
             errorCode = 4
             errorText = f"The destination directory {targetDirectory} does not exist" 
             raise AppError(errorText, errorCode)
-        
-    # print(f"\nSEARCHING FOR FILES IN {sourceDirectory} :" )
-    logger.write_line(f"\nSEARCHING FOR FILES IN {sourceDirectory} : ")
+
+    logger.LOG_INFO(f"\nSEARCHING FOR FILES IN {sourceDirectory} : ")
 
     # If there are no files in the source directory, we print a message and skip to the next step, which is to check the destination directory for files that do not exist in the source directory. 
     # Otherwise, we continue with the synchronization process. 
     if len(os.listdir(sourceDirectory)) == 0 :
-
-        #print(f"There are no files in {sourceDirectory} :" )
-        logger.write_line(f"There are no files in {sourceDirectory} : ")     
+        logger.LOG_INFO(f"There are no files in {sourceDirectory} : ", False)     
 
     else :
 
@@ -309,8 +295,7 @@ try :
                 table = str.maketrans("[]", "--")
                 sourceNameModified = sourceName.translate(table)
                 if sourceName != sourceNameModified :
-                    print(f"File {sourceName} contains square brackets, it is renamed to {sourceNameModified}")
-                    logger.write_line(f"File {sourceName} contains square brackets, it is renamed to {sourceNameModified}")
+                    logger.LOG_INFO(f"File {sourceName} contains square brackets, it is renamed to {sourceNameModified}")
                     os.rename(sourcePath, os.path.join(sourceDirectory, sourceNameModified))
                     sourceName = sourceNameModified
                     sourcePath = os.path.join(sourceDirectory, sourceName)
@@ -340,24 +325,20 @@ try :
 
                         # If the file exists in the destination directory and has the same size and modification date as the source file...
                         if sourceFileSize == targetFileSize and sourceFileModificationTime == targetFileModificationTime :
-
-                            #print(f"{sourceDirectory.upper()} : File {sourcePath} already exists in the destination directory with the same size and modification time, it is not copied")
-                            logger.write_line(f"{sourceDirectory.upper()} : File {sourcePath} already exists in the destination directory with the same size and modification time, it is not copied")
+                            logger.LOG_INFO(f"{sourceDirectory.upper()} : File {sourcePath} already exists in the destination directory with the same size and modification time, it is not copied", False)
                             notCopiedFoundFiles += 1
 
                         else :
 
                             # The file exists in the destination directory but has a different size or modification date...
-                            print(f"{sourceDirectory.upper()} : File {sourcePath} already exists in the destination directory but with different size or modification time, it is copied")
-                            logger.write_line(f"{sourceDirectory.upper()} : File {sourcePath} already exists in the destination directory but with different size or modification time, it is copied")
+                            logger.LOG_INFO(f"{sourceDirectory.upper()} : File {sourcePath} already exists in the destination directory but with different size or modification time, it is copied")
                             shutil.copy2(sourcePath, targetPath)
                             copiedFoundFiles += 1
 
                     else :
 
                         # The file does not exist in the destination directory, it is copied, and a message is printed indicating that it does not exist in the destination directory, so it is copied. 
-                        print(f"{sourceDirectory.upper()} : File {sourcePath} does not exist in the destination directory, it is copied")
-                        logger.write_line(f"{sourceDirectory.upper()} : File {sourcePath} does not exist in the destination directory, it is copied")
+                        logger.LOG_INFO(f"{sourceDirectory.upper()} : File {sourcePath} does not exist in the destination directory, it is copied")
                         shutil.copy2(sourcePath, targetPath)
                         copiedNotFoundFiles += 1
                     
@@ -374,25 +355,22 @@ try :
 
         # Printing the statistics for the source directory, including the total number of files and directories found in the source directory, the number of files found in the source directory, the number of files found in the source directory that already exist in the destination directory, the number of files found in the source directory that already exist in the destination directory but are not copied because they have the same size and modification date, and the number of files found in the source directory that are copied to the destination directory. 
         # These statistics are printed only in the log file.
-        logger.write_line(f"\nSTATISTICS FOR {sourceDirectory} : ")
-        logger.write_line(f"Number of total items found in source directory: {foundFilesAndDir}")
-        logger.write_line(f"Number of files found in source directory: {foundFiles}")
-        logger.write_line(f"Number of directories found in source directory: {foundDirectories}")
-        logger.write_line(f"Number of source files found in target directory: {copiedFoundFiles + notCopiedFoundFiles}")
-        logger.write_line(f"Number of source files copied to target directory: {copiedFoundFiles + copiedNotFoundFiles}")
-        logger.write_line(f"Number of source files found in target not copied to target directory: {notCopiedFoundFiles}")
+        logger.LOG_INFO(f"\nSTATISTICS FOR {sourceDirectory} : ", False)
+        logger.LOG_INFO(f"Number of total items found in source directory: {foundFilesAndDir}", False)
+        logger.LOG_INFO(f"Number of files found in source directory: {foundFiles}", False)
+        logger.LOG_INFO(f"Number of directories found in source directory: {foundDirectories}", False)
+        logger.LOG_INFO(f"Number of source files found in target directory: {copiedFoundFiles + notCopiedFoundFiles}", False)
+        logger.LOG_INFO(f"Number of source files copied to target directory: {copiedFoundFiles + copiedNotFoundFiles}", False)
+        logger.LOG_INFO(f"Number of source files found in target not copied to target directory: {notCopiedFoundFiles}", False)
             
          
         # The destination is traversed to remove files that do not exist in the source.
-        # print(f"\nSEARCHING FOR FILES IN {targetDirectory} : " )
-        logger.write_line(f"\nSEARCHING FOR FILES IN {targetDirectory} : ")
+        logger.LOG_INFO(f"\nSEARCHING FOR FILES IN {targetDirectory} : ", False)
 
         # If there are no files in the destination directory, we print a message and skip to the end of the script, which is to print the statistics. 
         # Otherwise, we continue with the synchronization process.
         if len(os.listdir(targetDirectory)) == 0 :
-
-            # print(f"There are no files in {targetDirectory} : " )
-            logger.write_line(f"There are no files in {targetDirectory} : ")  
+            logger.LOG_INFO(f"There are no files in {targetDirectory} : ", False)  
 
         else:
             
@@ -405,8 +383,7 @@ try :
                 try :
 
                     # Printing a message indicating that the file is being processed, both in the console and in the log file.
-                    #print(f"Processing {targetDirectory.upper()} : {fileItem}")
-                    logger.write_line(f"Processing {targetDirectory.upper()} : {fileItem}")
+                    logger.LOG_INFO(f"Processing {targetDirectory.upper()} : {fileItem}", False)
 
                     # Incrementing the total number of files and directories found in the destination directory, including directories, which will be processed later in the script. 
                     # This variable is used for statistics at the end of the script.
@@ -436,8 +413,7 @@ try :
                             targetFoundFilesNotInSource += 1
 
                             # Printing a message indicating that the file exists in the destination directory but does not exist in the source directory, so it is deleted, both in the console and in the log file.
-                            print(f"{targetDirectory.upper()} : File {targetPath} exists in the destination directory but does not exist in the source directory, it is deleted")
-                            logger.write_line(f"{targetDirectory.upper()} : File {targetPath} exists in the destination directory but does not exist in the source directory, it is deleted\n")
+                            logger.LOG_INFO(f"{targetDirectory.upper()} : File {targetPath} exists in the destination directory but does not exist in the source directory, it is deleted\n")
 
                             # Deleting the file in the destination directory, since it does not exist in the source directory
                             os.remove(targetPath)
@@ -448,8 +424,7 @@ try :
                             targetFoundDirNotInSource += 1
 
                             # Printing a message indicating that the directory exists in the destination directory but does not exist in the source directory, so it is deleted
-                            print(f"Directory {targetPath} exists in the destination directory but does not exist in the source directory, it is deleted")
-                            logger.write_line(f"{targetDirectory.upper()} : Directory {targetPath} exists in the destination directory but does not exist in the source directory, it is deleted")
+                            logger.LOG_INFO(f"{targetDirectory.upper()} : Directory {targetPath} exists in the destination directory but does not exist in the source directory, it is deleted")
 
                             # Deleting the directory in the destination directory
                             shutil.rmtree(targetPath)
@@ -465,13 +440,13 @@ try :
 
         # Printing the statistics for the destination directory, including the total number of files and directories found in the destination directory, the number of files found in the destination directory, the number of files found in the destination directory but not in the source directory, the number of directories found in the destination directory but not in the source directory, and the number of files and directories deleted from the destination directory. 
         # These statistics are printed only in the log file.
-        logger.write_line(f"\nSTATISTICS FOR {targetDirectory} : ")
-        logger.write_line(f"Total files and directories in target directory: {targetFoundFilesAndDir}")
-        logger.write_line(f"Files found in target directory: {targetFoundFiles}")
-        logger.write_line(f"Directories found in target directory: {targetFoundDirectories}")
-        logger.write_line(f"Files found in target directory but not in source directory then deleted : {targetFoundFilesNotInSource}")
-        logger.write_line(f"Directories found in target directory but not in source directory then deleted : {targetFoundDirNotInSource}")
-        logger.write_line(f"Files and directories deleted from source directory: {targetDeletedFilesAndDir}")
+        logger.LOG_INFO(f"\nSTATISTICS FOR {targetDirectory} : " , False)
+        logger.LOG_INFO(f"Total files and directories in target directory: {targetFoundFilesAndDir}" , False)
+        logger.LOG_INFO(f"Files found in target directory: {targetFoundFiles}" , False)
+        logger.LOG_INFO(f"Directories found in target directory: {targetFoundDirectories}" , False)
+        logger.LOG_INFO(f"Files found in target directory but not in source directory then deleted : {targetFoundFilesNotInSource}" , False)
+        logger.LOG_INFO(f"Directories found in target directory but not in source directory then deleted : {targetFoundDirNotInSource}" , False)
+        logger.LOG_INFO(f"Files and directories deleted from source directory: {targetDeletedFilesAndDir}", False)
 
 
     # We trace the origin in search of directories
@@ -497,8 +472,7 @@ try :
                 targetPath = os.path.join(targetDirectory, sourceName)
  
                 # The next directory is going to be processed
-                #print(f"The directory {sourcePath} is going to be processed")
-                logger.write_line(f"\nThe directory {sourcePath} is going to be processed")
+                logger.LOG_INFO(f"\nThe directory {sourcePath} is going to be processed")
 
                 # We call the script recursively for the directory blocking the execution until it finishes, so that we can be sure that the synchronization of the directory is finished before continuing with the next directory, and we can be sure that the statistics are printed at the end of the script, and we do not have to worry about printing them for each recursive execution, which would complicate the script and make it less efficient. 
                 # If we did this without blocking the execution, we would have to worry about printing the statistics for each recursive execution, which would complicate the script and make it less efficient.
