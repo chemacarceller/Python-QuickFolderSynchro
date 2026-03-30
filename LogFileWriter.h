@@ -26,13 +26,13 @@ class LogFileWriter {
         void set_min_level(int p_level);
 
         // LogFileWriter is a singleton; this is the method that returns the single instance of the object.
+        // If it is nullptr, it is instantiated.
         static LogFileWriter* get_singleton() { 
             if (singleton == nullptr) {
                 singleton = new LogFileWriter(); // Se crea aquí la primera vez
             }
             return singleton;
         }
-
 
         // Constructor & Destructor
         LogFileWriter();

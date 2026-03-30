@@ -6,7 +6,8 @@ ext_modules = [
         'LogFileWriter', # Nombre del módulo resultante
         ['LogFileWriter.cpp'],
         include_dirs=[pybind11.get_include()],
-        language='c++'
+        language='c++',
+        extra_compile_args=['/std:c++17'], # <--- Crucial para Windows
     ),
 ]
 

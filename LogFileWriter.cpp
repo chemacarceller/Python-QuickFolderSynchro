@@ -22,6 +22,7 @@
 #include <pybind11/pybind11.h>
 namespace py = pybind11;
 
+
 // Log file name defined as constant
 static const char* LOG_FILENAME = "QuickFolderSynchroPRO.log";
 
@@ -162,6 +163,8 @@ std::string LogFileWriter::get_timestamp() {
     return std::string(ss.str());    
 }
 
+
+
 // Create the Python module
 //This code is the "bridge" that exports your C++ code as a Python module
 //This defines the module name
@@ -172,9 +175,11 @@ PYBIND11_MODULE(LogFileWriter, m) {
     // In Python, the class will be renamed to Writer. Usage: obj = LogFileWriter.Writer().
     py::class_<LogFileWriter>(m, "Writer")
     
+    // exposing a Singleton pattern so that it can be used in Python.
+    // In Python, you will get an object like ogger = LogFileWriter.Writer.get_instance()
     .def_static("get_instance", &LogFileWriter::get_singleton, py::return_value_policy::reference)
     
-    //This binds a specific member function.
+    //This binds the functions for logging
     .def("set_min_level", &LogFileWriter::set_min_level)
     .def_static("LOG_DEBUG", [](std::string message, bool isStdOutput=true) { LOG_DEBUG(message, isStdOutput); }, py::arg("message"), py::arg("isStdOutput") = true)
     .def_static("LOG_INFO", [](std::string message, bool isStdOutput=true) { LOG_INFO(message, isStdOutput); }, py::arg("message"), py::arg("isStdOutput") = true)
@@ -182,6 +187,7 @@ PYBIND11_MODULE(LogFileWriter, m) {
     .def_static("LOG_ERROR", [](std::string message, bool isStdOutput=true) { LOG_ERROR(message, isStdOutput); }, py::arg("message"), py::arg("isStdOutput") = true)
     .def_static("LOG_FATAL", [](std::string message, bool isStdOutput=true) { LOG_FATAL(message, isStdOutput); }, py::arg("message"), py::arg("isStdOutput") = true);
 
+    // This binds the enum values
     py::enum_<LogFileWriter::LogLevel>(m, "LogLevel")
         .value("DEBUG", LogFileWriter::LogLevel::DEBUG)
         .value("INFO", LogFileWriter::LogLevel::INFO)
