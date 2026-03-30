@@ -61,16 +61,7 @@ def AppError_handler(error) :
 def general_exception_handler(error) :
     """ general_exception_handler. It doesn't exit the app in the exception management process """
 
-    # We print the error message on screen
-    print("Error detected : ", error, end='')
-            
-    # If there is an error code, we print it; otherwise, we print a message indicating there isn't any.
-    if isinstance(error.errno, int): print(" Error Code :", str(error.errno))
-    else : print("\nNo numeric error code was found in the exception, exited with -1")
-
-    try :
-        
-        # same info in the LOGERRORFILE file        
+    try :   
 
         # We print the error message on the file
         logger.LOG_ERROR(f"Error detected : {str(error)}")
@@ -83,11 +74,11 @@ def general_exception_handler(error) :
     except Exception as error :
 
         # If it cannot print in the file We print the error message
-        print("Error detected : ", error, end='')
+        logger.LOG_ERROR("Error detected : " + error)
             
         # If there is an error code, we display it
-        if isinstance(error.errno, int): print(" Error Code :", str(error.errno))
-        else : print("\nNo numeric error code was found in the exception, exited with -1")
+        if isinstance(error.errno, int): logger.LOG_ERROR(" Error Code :" + str(error.errno))
+        else : logger.LOG_ERROR("\nNo numeric error code was found in the exception, exited with -1")
 
 
 
@@ -106,7 +97,7 @@ def signal_handler(sig, frame, isRecursiveExecution, sourceDirectory):
     # We print a message indicating that a signal has been received and that we are starting the cleanup of the child processes
     # We also print a message indicating that we are saving the logs and exiting
     # This way, we can provide useful information to the user about what is happening when a signal is received, and we can also keep a record of the signals received and the actions taken in the log file, which can be useful for debugging and for understanding the behavior of the script when it receives signals.
-    print(f"\nSource Directory : {sourceDirectory} --> Signal {signal.Signals(sig).name} ({sig}) received : Starting the children's cleanup on the parent process and saving logs and exiting on each process...")
+    logger.LOG_INFO(f"\nSource Directory : {sourceDirectory} --> Signal {signal.Signals(sig).name} ({sig}) received : Starting the children's cleanup on the parent process and saving logs and exiting on each process...")
 
 
     # If we are in the parent process...
@@ -129,7 +120,7 @@ def signal_handler(sig, frame, isRecursiveExecution, sourceDirectory):
             # We print a message indicating the pid number of child processes that we are going to clean up
             for child_process in children_processes:
                 if child_process.is_alive() :
-                    print("Ending child PID: {child_process.pid}")
+                    logger.LOG_INFO("Ending child PID: {child_process.pid}")
                     child_process.terminate() 
 
             # Waiting for the child processes to terminate gracefully, with a timeout of 3 seconds
@@ -137,7 +128,7 @@ def signal_handler(sig, frame, isRecursiveExecution, sourceDirectory):
 
             # For any child process that is still alive after the timeout, we print a message indicating that we are forcing its closure
             for straggler in alive:
-                print(f"Forcing closure of rebellious child : {straggler.pid}")
+                logger.LOG_INFO(f"Forcing closure of rebellious child : {straggler.pid}")
                 straggler.kill()
 
         # If the current process does not exist, which can happen if the signal is received after the parent process has already terminated, we catch the NoSuchProcess exception, and we just exit with the appropriate code
