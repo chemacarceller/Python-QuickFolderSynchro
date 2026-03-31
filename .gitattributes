@@ -1,0 +1,7 @@
+# Asegurar que estas extensiones se cuenten correctamente
+*.py  linguist-language=Python
+*.cpp linguist-language=C++
+*.h   linguist-language=C++
+
+# Opcional: Si hay archivos sin extensión que se confunden, júntalos aquí
+# archivo_raro linguist-language=Python
