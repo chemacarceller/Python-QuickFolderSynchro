@@ -189,8 +189,11 @@ try :
         new_env[VAR_RECURSION] = "1"
 
         # the father process creates the logs files
-        with open(LOGFILE, 'w') : pass
-        with open(LOGERRORFILE, 'w') : pass
+        try :
+            with open(LOGFILE, 'w') : pass
+            with open(LOGERRORFILE, 'w') : pass
+        except Exception as error : general_exception_handler("Continuing without creating or resetting log files : " + error)
+            
 
     # We set the boolean variable to indicate that we are in a recursive execution
     else : isRecursiveExecution = True
