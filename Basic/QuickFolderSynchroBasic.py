@@ -189,17 +189,14 @@ try :
         new_env[VAR_RECURSION] = "1"
 
         # the father process creates the logs files
-        with open(LOGFILE, 'w') : pass
-        with open(LOGERRORFILE, 'w') : pass
+        try :
+            with open(LOGFILE, 'w') : pass
+            with open(LOGERRORFILE, 'w') : pass
+        except Exception as error : general_exception_handler("Continuing without creating or resetting log files : " + error)
+            
 
     # We set the boolean variable to indicate that we are in a recursive execution
     else : isRecursiveExecution = True
-
-    # The source and target directories are extracted from the command line arguments, and they are stored in variables for later use. 
-    # These variables are used throughout the script to refer to the source and target directories, and they are also used in the log messages to indicate which directories are being processed. 
-    # This way, we can keep track of the source and target directories throughout the script, and we can provide useful information to the user about which directories are being processed at each step of the synchronization process.
-    sourceDirectory = sys.argv[1]
-    targetDirectory = sys.argv[2]
 
 
     # Variables for task statistics
@@ -222,7 +219,7 @@ try :
     # In target Directory but not in source Directory
     targetFoundFilesNotInSource=0
     targetFoundDirNotInSource=0
-    targetDeletedFilesAndDir=0
+    targetDeletedFilesAndDir=0    
 
     #The LOGFILE file is opened for writing during execution
     with open(LOGFILE, 'a') as file :
@@ -232,6 +229,12 @@ try :
             errorCode = 1
             errorText = "Wrong arguments"
             raise AppError(errorText, errorCode)
+        
+        # The source and target directories are extracted from the command line arguments, and they are stored in variables for later use. 
+        # These variables are used throughout the script to refer to the source and target directories, and they are also used in the log messages to indicate which directories are being processed. 
+        # This way, we can keep track of the source and target directories throughout the script, and we can provide useful information to the user about which directories are being processed at each step of the synchronization process.
+        sourceDirectory = sys.argv[1]
+        targetDirectory = sys.argv[2]
 
         # Showing the source and target directories
         # print("SOURCE Directory :", sourceDirectory)
@@ -477,62 +480,62 @@ try :
         file.write(f"Files and directories deleted from source directory: {targetDeletedFilesAndDir}\n")
 
 
-    # We trace the origin in search of directories
-    # The directory exists in Destination, already verified
-    # This is done after processing the files, so we are sure that the directories in the destination directory that do not exist in the source directory have already been deleted, so we can be sure that all the directories that exist in the destination directory also exist in the source directory, and we can process them without worrying about deleting them later. 
-    # If we did this before processing the files, we would have to worry about deleting directories that do not exist in the source directory but exist in the destination directory, which would complicate the script and make it less efficient.
-    # The recursive execution of the script for the directories is done at the end of the script, so we have already processed all the files in the source and destination directories
-    # It has been taken outside the with statement because we want to be sure that the log file is closed before we start the recursive execution of the script for the directories, since the recursive execution of the script for the directories will also write to the log file, and if we do not close the log file before starting the recursive execution of the script for the directories, we may have problems with concurrent access to the log file, which could cause errors or inconsistencies in the log file. 
-    # By closing the log file before starting the recursive execution of the script for the directories, we can be sure that there are no problems with concurrent access to the log file, and we can be sure that all the log messages are written correctly to the log file.
-    for fileItem in sorted(os.listdir(sourceDirectory)) :
+        # We trace the origin in search of directories
+        # The directory exists in Destination, already verified
+        # This is done after processing the files, so we are sure that the directories in the destination directory that do not exist in the source directory have already been deleted, so we can be sure that all the directories that exist in the destination directory also exist in the source directory, and we can process them without worrying about deleting them later. 
+        # If we did this before processing the files, we would have to worry about deleting directories that do not exist in the source directory but exist in the destination directory, which would complicate the script and make it less efficient.
+        # The recursive execution of the script for the directories is done at the end of the script, so we have already processed all the files in the source and destination directories
+        # It has been taken outside the with statement because we want to be sure that the log file is closed before we start the recursive execution of the script for the directories, since the recursive execution of the script for the directories will also write to the log file, and if we do not close the log file before starting the recursive execution of the script for the directories, we may have problems with concurrent access to the log file, which could cause errors or inconsistencies in the log file. 
+        # By closing the log file before starting the recursive execution of the script for the directories, we can be sure that there are no problems with concurrent access to the log file, and we can be sure that all the log messages are written correctly to the log file.
+        for fileItem in sorted(os.listdir(sourceDirectory)) :
 
-        try :
+            try :
 
-            # For each SOURCE file, the name is extracted
-            sourceName = fileItem
-            sourcePath = os.path.join(sourceDirectory, sourceName)
+                # For each SOURCE file, the name is extracted
+                sourceName = fileItem
+                sourcePath = os.path.join(sourceDirectory, sourceName)
 
-            # The path of the directory in the destination directory is constructed
-            targetPath = os.path.join(targetDirectory, sourceName)
+                # The path of the directory in the destination directory is constructed
+                targetPath = os.path.join(targetDirectory, sourceName)
 
-            # If the file is a directory, we call the script recursively for that directory. 
-            # If it is not a directory, it has already been processed in the previous steps of the script, so it is skipped.
-            if os.path.isdir(sourcePath) :
+                # If the file is a directory, we call the script recursively for that directory. 
+                # If it is not a directory, it has already been processed in the previous steps of the script, so it is skipped.
+                if os.path.isdir(sourcePath) :
 
-                with open(LOGFILE, 'a') as file :
+                    with open(LOGFILE, 'a') as file :
     
-                    # The next directory is going to be processed
-                    #print(f"The directory {sourcePath} is going to be processed")
-                    file.write(f"\nThe directory {sourcePath} is going to be processed\n")
+                        # The next directory is going to be processed
+                        #print(f"The directory {sourcePath} is going to be processed")
+                        file.write(f"\nThe directory {sourcePath} is going to be processed\n")
 
-                    # Important: Empty the buffer before launching the child
-                    file.flush() 
-                    os.fsync(file.fileno())
+                        # Important: Empty the buffer before launching the child
+                        file.flush() 
+                        os.fsync(file.fileno())
 
-                # We call the script recursively for the directory blocking the execution until it finishes, so that we can be sure that the synchronization of the directory is finished before continuing with the next directory, and we can be sure that the statistics are printed at the end of the script, and we do not have to worry about printing them for each recursive execution, which would complicate the script and make it less efficient. 
-                # If we did this without blocking the execution, we would have to worry about printing the statistics for each recursive execution, which would complicate the script and make it less efficient.
-                # The call to subprocess.run is done outside the with statement, so we can be sure that the log file is closed before we start the recursive execution of the script for the directories, since the recursive execution of the script for the directories will also write to the log file, and if we do not close the log file before starting the recursive execution of the script for the directories, we may have problems with concurrent access to the log file, which could cause errors or inconsistencies in the log file. 
-                # By closing the log file before starting the recursive execution of the script for the directories, we can be sure that there are no problems with concurrent access to the log file, and we can be sure that all the log messages are written correctly to the log file.
-                # And in a new environment with our custom brand name, so that we can check if the script is being executed recursively in the child execution, and we can skip the confirmation of the destination directory and the printing of the statistics in the child execution, since they are only printed at the end of the script, and we want to print them only once at the end of the script, not for each recursive execution.
-                # Depending on whether the script is running as an executable (PyInstaller) or as a normal .py script, we call it with the appropriate arguments. 
-                # If it is running as an executable, we call it with sys.executable, which is the path to the executable, and the source and target paths as arguments. 
-                # If it is running as a normal .py script, we call it with sys.executable, which is the path to the Python interpreter, and sys.argv[0], which is the path to the script, and the source and target paths as arguments. 
-                # In both cases, we pass the new environment with our custom brand name to indicate that it is a recursive execution, so that we can skip the confirmation of the destination directory and the printing of the statistics in the child execution.
+                    # We call the script recursively for the directory blocking the execution until it finishes, so that we can be sure that the synchronization of the directory is finished before continuing with the next directory, and we can be sure that the statistics are printed at the end of the script, and we do not have to worry about printing them for each recursive execution, which would complicate the script and make it less efficient. 
+                    # If we did this without blocking the execution, we would have to worry about printing the statistics for each recursive execution, which would complicate the script and make it less efficient.
+                    # The call to subprocess.run is done outside the with statement, so we can be sure that the log file is closed before we start the recursive execution of the script for the directories, since the recursive execution of the script for the directories will also write to the log file, and if we do not close the log file before starting the recursive execution of the script for the directories, we may have problems with concurrent access to the log file, which could cause errors or inconsistencies in the log file. 
+                    # By closing the log file before starting the recursive execution of the script for the directories, we can be sure that there are no problems with concurrent access to the log file, and we can be sure that all the log messages are written correctly to the log file.
+                    # And in a new environment with our custom brand name, so that we can check if the script is being executed recursively in the child execution, and we can skip the confirmation of the destination directory and the printing of the statistics in the child execution, since they are only printed at the end of the script, and we want to print them only once at the end of the script, not for each recursive execution.
+                    # Depending on whether the script is running as an executable (PyInstaller) or as a normal .py script, we call it with the appropriate arguments. 
+                    # If it is running as an executable, we call it with sys.executable, which is the path to the executable, and the source and target paths as arguments. 
+                    # If it is running as a normal .py script, we call it with sys.executable, which is the path to the Python interpreter, and sys.argv[0], which is the path to the script, and the source and target paths as arguments. 
+                    # In both cases, we pass the new environment with our custom brand name to indicate that it is a recursive execution, so that we can skip the confirmation of the destination directory and the printing of the statistics in the child execution.
 
-                # It is running as an executable (PyInstaller)
-                if getattr(sys, 'frozen', False): subprocess.run([sys.executable, sourcePath, targetPath], env=new_env, stderr=subprocess.DEVNULL)
-                # It is running as an executable (Niutka)
-                elif "__compiled__" in globals() : subprocess.run([sys.argv[0], sourcePath, targetPath], env=new_env, stderr=subprocess.DEVNULL)
-                # It's running as a normal .py script
-                else: subprocess.run([sys.executable, sys.argv[0], sourcePath, targetPath], env=new_env, stderr=subprocess.DEVNULL)
+                    # It is running as an executable (PyInstaller)
+                    if getattr(sys, 'frozen', False): subprocess.run([sys.executable, sourcePath, targetPath], env=new_env, stderr=subprocess.DEVNULL)
+                    # It is running as an executable (Niutka)
+                    elif "__compiled__" in globals() : subprocess.run([sys.argv[0], sourcePath, targetPath], env=new_env, stderr=subprocess.DEVNULL)
+                    # It's running as a normal .py script
+                    else: subprocess.run([sys.executable, sys.argv[0], sourcePath, targetPath], env=new_env, stderr=subprocess.DEVNULL)
 
-        except AppError as error :
-            AppError_handler(error)
-            continue
+            except AppError as error :
+                AppError_handler(error)
+                continue
         
-        except Exception as error :
-            general_exception_handler(error)
-            continue
+            except Exception as error :
+                general_exception_handler(error)
+                continue
 
 except AppError as error : AppError_handler(error)
 
