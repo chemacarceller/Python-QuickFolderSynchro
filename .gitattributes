@@ -5,3 +5,8 @@
 
 # Opcional: Si hay archivos sin extensión que se confunden, júntalos aquí
 # archivo_raro linguist-language=Python
+
+# Ignora cualquier otra cosa en las estadísticas de lenguaje
+*.exe linguist-vendored
+*.run linguist-vendored
+*.zip linguist-vendored
