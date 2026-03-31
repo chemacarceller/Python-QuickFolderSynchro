@@ -19,9 +19,16 @@ For Windows, it could be run using    python QuickFolderSynchto.py   (since shel
 
 However, the script has also been compiled using Niutka, creating both an .exe file (using the --onefile option) and a .zip file (using the --standalone option). The .zip file must be extracted to the desired folder before it can be run.
 
-The Pro version is an optimized version because it passes the code for accessing log files to be developed in a C++ module that is accessible from the Python code.
+Everything in the root directory is the tool exclusively programmed in python
 
-The LogFileWriter···.so and LogFileWrite···.pyd files are the result of compiling the LogFileWriter.cpp file on Linux and Windows; if you want to run the script from the source file, these binaries must be located in the same directory as the source file.
+The Basic, Advanced and Advanced Plus folders incorporate a C++ LogFileWriter class to store logs in a file
+
+Basic: The class used is a Basic version 
+
+Advanced: The class used is an advanced version that implements a singleton, the class was developed to store games in Godot and has been adapted to this Python script
+Problem: Although it is a singleton, it is at the process level, but in this case processes are launched recursively so a different singleton class is instantiated for each process
+
+Advanced plus: The class used in Advanced is adapted to generate a singleton between processes, establishing a memory region where the only singleton instance is stored and accessible by any process, this implies a level jump in the C++ class
 
 ======================================================================
 
@@ -44,6 +51,13 @@ Para windows se podría ejecutar mediante     python QuickFolderSynchto.py    (y
 
 Sin embargo, también mediante Niutka se ha compilado el script y se ha creado un .exe (opcion --onefile) y un .zip (opcion --standalone), este ultimo debe descomprimirse en la carpeta deseada para poder ejecutarlo.
 
-La version Pro es una version optimizada porque se pasa el codigo de acceso a ficheros de logs a ser desarrollado en un modulo de C++ que es accesible desde el código de Python
+Todo lo que hay en el directorio raiz es la herramienta exclusivamente programada en python
 
-Los archivos LogFileWriter···.so y LogFileWrite···.pyd son los archivos resultantes de compilar el fichero LogFileWriter.cpp en Linux y en Windows; si se desea ejecutar el script desde el fichero fuente es necesario que estos archivos binarios esten ubicados en el mismo directorio que el fichero fuente
+Las carpetas Basic, Advanced y Advanced Plus incorporan una clase C++ LogFileWriter para almacenar logs en fichero
+
+Basic : La clase utilizada es una version Basic 
+
+Advanced : La clase utilizada es una version avanzada que implementa un singleton, la clase se desarrolló para almacenar los juegos en Godot y ha sido adaptada a este script de Python
+Problema : Aunque es un singleton, lo es a nivel de proceso, pero en este caso se lanzan procesos de forma recursiva por lo que se instancia una clase singleton distinta para cada proceso
+
+Advanced plus : Se adapta la clase utilizada en Advanced para generar un singleton entre procesos, estableciendo una región de memoria donde se almacena la única instancia singleton siendo accesible por cualquier proceso, esto implica un salto de nivel en la clase C++
