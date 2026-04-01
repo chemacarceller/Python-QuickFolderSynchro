@@ -61,24 +61,24 @@ def AppError_handler(error) :
 def general_exception_handler(error) :
     """ general_exception_handler. It doesn't exit the app in the exception management process """
 
-    try :   
-
+    try :
+        
         # We print the error message on the file
-        logger.LOG_ERROR(f"Error detected : {str(error)}")
+        LogFileWriter.Writer.LOG_ERROR(f"Error detected : {str(error)}",'general_exception_handler', 67)
 
         # If there is an error code, we print it; otherwise, we print a message indicating there isn't any.
-        if isinstance(error.errno, int): logger.LOG_ERROR(f" Error Code : {str(error.errno)}")
-        else : logger.LOG_ERROR("No numeric error code was found in the exception, exited with -1")
+        if isinstance(error.errno, int): LogFileWriter.Writer.LOG_ERROR(f" Error Code : {str(error.errno)}",'general_exception_handler', 70)
+        else : LogFileWriter.Writer.LOG_ERROR("No numeric error code was found in the exception, exited with -1",'general_exception_handler', 71)
 
     # case it is not possible to write the file
     except Exception as error :
 
         # If it cannot print in the file We print the error message
-        logger.LOG_ERROR("Error detected : " + error)
+        print("Error detected : ", error, end='')
             
         # If there is an error code, we display it
-        if isinstance(error.errno, int): logger.LOG_ERROR(" Error Code :" + str(error.errno))
-        else : logger.LOG_ERROR("\nNo numeric error code was found in the exception, exited with -1")
+        if isinstance(error.errno, int): print(" Error Code :", str(error.errno))
+        else : print("\nNo numeric error code was found in the exception, exited with -1")
 
 
 
@@ -93,12 +93,6 @@ def signal_handler(sig, frame, isRecursiveExecution, sourceDirectory):
 
     # Variable to check if the script is being executed in an interactive terminal
     is_interactive = sys.stdin.isatty()
-
-    # We print a message indicating that a signal has been received and that we are starting the cleanup of the child processes
-    # We also print a message indicating that we are saving the logs and exiting
-    # This way, we can provide useful information to the user about what is happening when a signal is received, and we can also keep a record of the signals received and the actions taken in the log file, which can be useful for debugging and for understanding the behavior of the script when it receives signals.
-    logger.LOG_INFO(f"\nSource Directory : {sourceDirectory} --> Signal {signal.Signals(sig).name} ({sig}) received : Starting the children's cleanup on the parent process and saving logs and exiting on each process...")
-
 
     # If we are in the parent process...
     # Only for SIGTERM or others, since SIGINT is usually sent by the user pressing Ctrl+C and the processes are cleaned up from farest child to the parent automatically by this function once they receive the CTRL+C command, so we do not need to clean them up manually
@@ -120,7 +114,7 @@ def signal_handler(sig, frame, isRecursiveExecution, sourceDirectory):
             # We print a message indicating the pid number of child processes that we are going to clean up
             for child_process in children_processes:
                 if child_process.is_alive() :
-                    logger.LOG_INFO("Ending child PID: {child_process.pid}")
+                    LogFileWriter.Writer.LOG_INFO("Ending child PID: {child_process.pid}")
                     child_process.terminate() 
 
             # Waiting for the child processes to terminate gracefully, with a timeout of 3 seconds
@@ -128,7 +122,7 @@ def signal_handler(sig, frame, isRecursiveExecution, sourceDirectory):
 
             # For any child process that is still alive after the timeout, we print a message indicating that we are forcing its closure
             for straggler in alive:
-                logger.LOG_INFO(f"Forcing closure of rebellious child : {straggler.pid}")
+                LogFileWriter.Writer.LOG_INFO(f"Forcing closure of rebellious child : {straggler.pid}")
                 straggler.kill()
 
         # If the current process does not exist, which can happen if the signal is received after the parent process has already terminated, we catch the NoSuchProcess exception, and we just exit with the appropriate code
@@ -138,8 +132,7 @@ def signal_handler(sig, frame, isRecursiveExecution, sourceDirectory):
     
     try :
             
-        # We print the message in the log file indicating that we are saving the logs and exiting
-        logger.LOG_WARN(f"Source Directory : {sourceDirectory} --> Signal {signal.Signals(sig).name} ({sig}) received : Starting the children's cleanup on the parent process and saving logs and exiting on each process...")
+        LogFileWriter.Writer.LOG_INFO(f"Source Directory : {sourceDirectory} --> Signal {signal.Signals(sig).name} ({sig}) received : Starting the children's cleanup on the parent process and saving logs and exiting on each process...")
 
     # If any exception occurs while trying to save the logs, we catch it and print an error message indicating that an error was detected while trying to save the logs
     # Calling the general exception handler
@@ -157,7 +150,7 @@ def signal_handler(sig, frame, isRecursiveExecution, sourceDirectory):
 # All the code will be inside a try block, so that if any command fails, the error is handled eficiently
 try :
 
-    logger = LogFileWriter.Writer.get_instance()
+    logger = None
 
     # We initialize the variable that will hold the new environment with our custom brand name, which is used to check if the script is being executed recursively. 
     new_env = None
@@ -175,41 +168,12 @@ try :
         new_env = os.environ.copy()
         new_env[VAR_RECURSION] = "1"
 
+        # An empty log file is created (only in the main process)
+        LogFileWriter.Writer.get_instance().resetLogFile()
+
     # We set the boolean variable to indicate that we are in a recursive execution
-    else : isRecursiveExecution = True
-
-    # Wrong arguments...
-    if not isRecursiveExecution and len(sys.argv) != 3 :
-        errorCode = 1
-        errorText = "Wrong arguments"
-        raise AppError(errorText, errorCode)
-        
-    # The source and target directories are extracted from the command line arguments, and they are stored in variables for later use. 
-    # These variables are used throughout the script to refer to the source and target directories, and they are also used in the log messages to indicate which directories are being processed. 
-    # This way, we can keep track of the source and target directories throughout the script, and we can provide useful information to the user about which directories are being processed at each step of the synchronization process.
-    sourceDirectory = sys.argv[1]
-    targetDirectory = sys.argv[2]
-
-    # Showing the source and target directories
-    logger.LOG_INFO("SOURCE Directory : " + sourceDirectory, False)
-    logger.LOG_INFO("TARGET Directory : " + targetDirectory, False)
-
-    # Setting the signal handler function, passing him whether we are in the father or in one of its child processes and the sourceDirectory managed by the process
-    signal.signal(signal.SIGTERM, lambda s, f: signal_handler(s, f, isRecursiveExecution, sourceDirectory))
-    signal.signal(signal.SIGINT, lambda s, f: signal_handler(s, f, isRecursiveExecution, sourceDirectory))
-        
-    # It is detected that we are in the father process
-    if not isRecursiveExecution :
-
-        # We request confirmation that the destination directory is correct.
-        resp = input(f"Confirm that {targetDirectory} is correct? Answer Yes to continue, No to cancel : ");
-        while resp != "Yes" :
-            if resp == "No" : 
-                errorCode = 2
-                errorText = "Aborted by the user does not confirm that the destination directory is correct."
-                raise AppError(errorText, errorCode)
-            resp = input(f"Confirm that {targetDirectory} is correct? Answer Yes to continue, No to cancel : ")
-
+    else : 
+        isRecursiveExecution = True
 
     # Variables for task statistics
 
@@ -231,137 +195,174 @@ try :
     # In target Directory but not in source Directory
     targetFoundFilesNotInSource=0
     targetFoundDirNotInSource=0
-    targetDeletedFilesAndDir=0
+    targetDeletedFilesAndDir=0    
 
-    # The source directory does not exist.
-    if not os.path.exists(sourceDirectory) :
-        # If the source directory does not exist, we print an error message and raise an exception with an appropriate error code, since the synchronization process cannot continue if the source directory does not exist, and it is important to provide useful information to the user about what went wrong, so that they can fix the problem and run the script again successfully.
-        errorCode = 3
-        errorText = f"The source directory {sourceDirectory} does not exist" 
+    # Wrong arguments...
+    if not isRecursiveExecution and len(sys.argv) != 3 :
+        errorCode = 1
+        errorText = "Wrong arguments"
         raise AppError(errorText, errorCode)
         
-    # The destination directory does not exist.
-    if not os.path.exists(targetDirectory) :
+    # The source and target directories are extracted from the command line arguments, and they are stored in variables for later use. 
+    # These variables are used throughout the script to refer to the source and target directories, and they are also used in the log messages to indicate which directories are being processed. 
+    # This way, we can keep track of the source and target directories throughout the script, and we can provide useful information to the user about which directories are being processed at each step of the synchronization process.
+    sourceDirectory = sys.argv[1]
+    targetDirectory = sys.argv[2]
 
-        if isRecursiveExecution :
+    try :
 
-            # If the destination directory does not exist, we print a message indicating that it does not exist and that it is being created, both in the console and in the log file, and then we create the destination directory, since it is necessary for the synchronization process to continue, and it is better to create the destination directory if it does not exist than to raise an error and stop the synchronization process
-            logger.LOG_INFO(f"The destination directory {targetDirectory} does not exist, it is created")
-            os.mkdir(targetDirectory)
+        # Showing the source and target directories
+        LogFileWriter.Writer.LOG_INFO("SOURCE Directory : " + sourceDirectory, 'QuickFolderSynchroAdvanced.py', 217, False)
+        LogFileWriter.Writer.LOG_INFO("TARGET Directory : " + targetDirectory, 'QuickFolderSynchroAdvanced.py', 217, False)
+
+        # Setting the signal handler function, passing him whether we are in the father or in one of its child processes and the sourceDirectory managed by the process
+        signal.signal(signal.SIGTERM, lambda s, f: signal_handler(s, f, isRecursiveExecution, sourceDirectory))
+        signal.signal(signal.SIGINT, lambda s, f: signal_handler(s, f, isRecursiveExecution, sourceDirectory))
+        
+        # It is detected that we are in the father process
+        if not isRecursiveExecution :
+
+            # We request confirmation that the destination directory is correct.
+            resp = input(f"Confirm that {targetDirectory} is correct? Answer Yes to continue, No to cancel : ");
+            while resp != "Yes" :
+                if resp == "No" : 
+                    errorCode = 2
+                    errorText = "Aborted by the user does not confirm that the destination directory is correct."
+                    raise AppError(errorText, errorCode)
+                resp = input(f"Confirm that {targetDirectory} is correct? Answer Yes to continue, No to cancel : ")
+
+        # The source directory does not exist.
+        if not os.path.exists(sourceDirectory) :
+            # If the source directory does not exist, we print an error message and raise an exception with an appropriate error code, since the synchronization process cannot continue if the source directory does not exist, and it is important to provide useful information to the user about what went wrong, so that they can fix the problem and run the script again successfully.
+            errorCode = 3
+            errorText = f"The source directory {sourceDirectory} does not exist" 
+            raise AppError(errorText, errorCode)
+        
+        # The destination directory does not exist.
+        if not os.path.exists(targetDirectory) :
+
+            if isRecursiveExecution :
+
+                # If the destination directory does not exist, we print a message indicating that it does not exist and that it is being created, both in the console and in the log file, and then we create the destination directory, since it is necessary for the synchronization process to continue, and it is better to create the destination directory if it does not exist than to raise an error and stop the synchronization process
+                LogFileWriter.Writer.LOG_INFO(f"The destination directory {targetDirectory} does not exist, it is created", 'QuickFolderSynchroAdvanced.py', 241, True)
+                os.mkdir(targetDirectory)
+
+            else :
+
+                # If the destination directory does not exist, we print an error message and raise an exception with an appropriate error code, since the synchronization process cannot continue if the destination directory does not exist, and it is important to provide useful information to the user about what went wrong, so that they can fix the problem and run the script again successfully.
+                errorCode = 4
+                errorText = f"The destination directory {targetDirectory} does not exist" 
+                raise AppError(errorText, errorCode)
+        
+        LogFileWriter.Writer.LOG_INFO(f"SEARCHING FOR FILES IN {sourceDirectory} :", 'QuickFolderSynchroAdvanced.py', 252, False)
+
+        # If there are no files in the source directory, we print a message and skip to the next step, which is to check the destination directory for files that do not exist in the source directory. 
+        # Otherwise, we continue with the synchronization process. 
+        if len(os.listdir(sourceDirectory)) == 0 :
+
+            LogFileWriter.Writer.LOG_INFO(f"There are no files in {sourceDirectory} : ", 'QuickFolderSynchroAdvanced.py', 258, False) 
 
         else :
 
-            # If the destination directory does not exist, we print an error message and raise an exception with an appropriate error code, since the synchronization process cannot continue if the destination directory does not exist, and it is important to provide useful information to the user about what went wrong, so that they can fix the problem and run the script again successfully.
-            errorCode = 4
-            errorText = f"The destination directory {targetDirectory} does not exist" 
-            raise AppError(errorText, errorCode)
+            # For each file item in source directory
+            for fileItem in sorted(os.listdir(sourceDirectory)) :
 
-    logger.LOG_INFO(f"\nSEARCHING FOR FILES IN {sourceDirectory} : ")
+                try :
 
-    # If there are no files in the source directory, we print a message and skip to the next step, which is to check the destination directory for files that do not exist in the source directory. 
-    # Otherwise, we continue with the synchronization process. 
-    if len(os.listdir(sourceDirectory)) == 0 :
-        logger.LOG_INFO(f"There are no files in {sourceDirectory} : ", False)     
+                    # Incrementing the total number of files and directories found in the source directory, including directories, which will be processed later in the script. 
+                    # This variable is used for statistics at the end of the script.
+                    foundFilesAndDir += 1
 
-    else :
-
-        # For each file item in source directory
-        for fileItem in sorted(os.listdir(sourceDirectory)) :
-
-            try :
-
-                # Incrementing the total number of files and directories found in the source directory, including directories, which will be processed later in the script. 
-                # This variable is used for statistics at the end of the script.
-                foundFilesAndDir += 1
-
-                # For each SOURCE file, the name, size, and modification date are extracted.
-                sourceName = fileItem
-                sourcePath = os.path.join(sourceDirectory, sourceName)
-                sourceFileSize = os.path.getsize(sourcePath)
-                sourceFileModificationTime = os.path.getmtime(sourcePath)
-
-                # Files with square brackets cause problems, so they are replaced with hyphens. also applies to directories, since they will be processed later in the script, and if they have square brackets, they will cause problems when trying to access them. 
-                # This is done before processing the files, so we are sure that all the files and directories that we process do not have square brackets, and we do not have to worry about them later in the script. 
-                # If we did this after processing the files, we would have to worry about files and directories with square brackets that we have already processed, which would complicate the script and make it less efficient.
-                table = str.maketrans("[]", "--")
-                sourceNameModified = sourceName.translate(table)
-                if sourceName != sourceNameModified :
-                    logger.LOG_INFO(f"File {sourceName} contains square brackets, it is renamed to {sourceNameModified}")
-                    os.rename(sourcePath, os.path.join(sourceDirectory, sourceNameModified))
-                    sourceName = sourceNameModified
+                    # For each SOURCE file, the name, size, and modification date are extracted.
+                    sourceName = fileItem
                     sourcePath = os.path.join(sourceDirectory, sourceName)
+                    sourceFileSize = os.path.getsize(sourcePath)
+                    sourceFileModificationTime = os.path.getmtime(sourcePath)
 
-                # The path of the file in the destination directory is constructed, and it is checked if it exists. 
-                # If it exists, the number of files found in the destination directory is incremented, and its size and modification date are compared with those of the source file. 
-                # If they are the same, it is not copied, and the number of files not copied is incremented. 
-                # If they are different, it is copied, and the number of files copied is incremented. 
-                # If it does not exist, it is copied, and the number of files copied is incremented.
-                targetPath = os.path.join(targetDirectory, sourceName)
+                    # Files with square brackets cause problems, so they are replaced with hyphens. also applies to directories, since they will be processed later in the script, and if they have square brackets, they will cause problems when trying to access them. 
+                    # This is done before processing the files, so we are sure that all the files and directories that we process do not have square brackets, and we do not have to worry about them later in the script. 
+                    # If we did this after processing the files, we would have to worry about files and directories with square brackets that we have already processed, which would complicate the script and make it less efficient.
+                    table = str.maketrans("[]", "--")
+                    sourceNameModified = sourceName.translate(table)
+                    if sourceName != sourceNameModified :
+                        LogFileWriter.Writer.LOG_INFO(f"File {sourceName} contains square brackets, it is renamed to {sourceNameModified}", 'QuickFolderSynchroAdvanced.py', 282, True)
+                        os.rename(sourcePath, os.path.join(sourceDirectory, sourceNameModified))
+                        sourceName = sourceNameModified
+                        sourcePath = os.path.join(sourceDirectory, sourceName)
 
-                # If the file is not a directory, otherswise it will be processed later in the script
-                if not os.path.isdir(sourcePath) :
+                    # The path of the file in the destination directory is constructed, and it is checked if it exists. 
+                    # If it exists, the number of files found in the destination directory is incremented, and its size and modification date are compared with those of the source file. 
+                    # If they are the same, it is not copied, and the number of files not copied is incremented. 
+                    # If they are different, it is copied, and the number of files copied is incremented. 
+                    # If it does not exist, it is copied, and the number of files copied is incremented.
+                    targetPath = os.path.join(targetDirectory, sourceName)
 
-                    # Incrementing the number of files found in the source directory, excluding directories, this variable is used for statistics at the end of the script.
-                    foundFiles += 1
+                    # If the file is not a directory, otherswise it will be processed later in the script
+                    if not os.path.isdir(sourcePath) :
 
-                    # If the file exists in the destination directory, we check if it has the same size and modification date as the source file. 
-                    # If it does, it is not copied. 
-                    # If it does not, it is copied. 
-                    # In both cases, a message is printed indicating what happened, and the corresponding statistics are updated.
-                    if os.path.exists(targetPath) :  
+                        # Incrementing the number of files found in the source directory, excluding directories, this variable is used for statistics at the end of the script.
+                        foundFiles += 1
 
-                        # If the file exists in the destination directory...
-                        targetFileSize = os.path.getsize(targetPath)
-                        targetFileModificationTime = os.path.getmtime(targetPath)
+                        # If the file exists in the destination directory, we check if it has the same size and modification date as the source file. 
+                        # If it does, it is not copied. 
+                        # If it does not, it is copied. 
+                        # In both cases, a message is printed indicating what happened, and the corresponding statistics are updated.
+                        if os.path.exists(targetPath) :  
 
-                        # If the file exists in the destination directory and has the same size and modification date as the source file...
-                        if sourceFileSize == targetFileSize and sourceFileModificationTime == targetFileModificationTime :
-                            logger.LOG_INFO(f"{sourceDirectory.upper()} : File {sourcePath} already exists in the destination directory with the same size and modification time, it is not copied", False)
-                            notCopiedFoundFiles += 1
+                            # If the file exists in the destination directory...
+                            targetFileSize = os.path.getsize(targetPath)
+                            targetFileModificationTime = os.path.getmtime(targetPath)
+
+                            # If the file exists in the destination directory and has the same size and modification date as the source file...
+                            if sourceFileSize == targetFileSize and sourceFileModificationTime == targetFileModificationTime :
+
+                                LogFileWriter.Writer.LOG_INFO(f"{sourceDirectory.upper()} : File {sourcePath} already exists in the destination directory with the same size and modification time, it is not copied", 'QuickFolderSynchroAdvanced.py', 314, False)
+                                notCopiedFoundFiles += 1
+
+                            else :
+
+                                # The file exists in the destination directory but has a different size or modification date...
+                                LogFileWriter.Writer.LOG_INFO(f"{sourceDirectory.upper()} : File {sourcePath} already exists in the destination directory but with different size or modification time, it is copied", 'QuickFolderSynchroAdvanced.py', 319, True)
+                                shutil.copy2(sourcePath, targetPath)
+                                copiedFoundFiles += 1
 
                         else :
 
-                            # The file exists in the destination directory but has a different size or modification date...
-                            logger.LOG_INFO(f"{sourceDirectory.upper()} : File {sourcePath} already exists in the destination directory but with different size or modification time, it is copied")
+                            # The file does not exist in the destination directory, it is copied, and a message is printed indicating that it does not exist in the destination directory, so it is copied. 
+                            LogFileWriter.Writer.LOG_INFO(f"{sourceDirectory.upper()} : File {sourcePath} does not exist in the destination directory, it is copied", 'QuickFolderSynchroAdvanced.py', 326, True)
                             shutil.copy2(sourcePath, targetPath)
-                            copiedFoundFiles += 1
-
-                    else :
-
-                        # The file does not exist in the destination directory, it is copied, and a message is printed indicating that it does not exist in the destination directory, so it is copied. 
-                        logger.LOG_INFO(f"{sourceDirectory.upper()} : File {sourcePath} does not exist in the destination directory, it is copied")
-                        shutil.copy2(sourcePath, targetPath)
-                        copiedNotFoundFiles += 1
+                            copiedNotFoundFiles += 1
                     
-                # Incrementing the number of directories found in the source directory, excluding files, this variable is used for statistics at the end of the script.
-                else : foundDirectories += 1
+                    # Incrementing the number of directories found in the source directory, excluding files, this variable is used for statistics at the end of the script.
+                    else : foundDirectories += 1
 
-            except AppError as error :
-                AppError_handler(error)
-                continue
+                except AppError as error :
+                    AppError_handler(error)
+                    continue
                 
-            except Exception as error :
-                general_exception_handler(error)
-                continue
+                except Exception as error :
+                    general_exception_handler(error)
+                    continue
 
         # Printing the statistics for the source directory, including the total number of files and directories found in the source directory, the number of files found in the source directory, the number of files found in the source directory that already exist in the destination directory, the number of files found in the source directory that already exist in the destination directory but are not copied because they have the same size and modification date, and the number of files found in the source directory that are copied to the destination directory. 
         # These statistics are printed only in the log file.
-        logger.LOG_INFO(f"\nSTATISTICS FOR {sourceDirectory} : ", False)
-        logger.LOG_INFO(f"Number of total items found in source directory: {foundFilesAndDir}", False)
-        logger.LOG_INFO(f"Number of files found in source directory: {foundFiles}", False)
-        logger.LOG_INFO(f"Number of directories found in source directory: {foundDirectories}", False)
-        logger.LOG_INFO(f"Number of source files found in target directory: {copiedFoundFiles + notCopiedFoundFiles}", False)
-        logger.LOG_INFO(f"Number of source files copied to target directory: {copiedFoundFiles + copiedNotFoundFiles}", False)
-        logger.LOG_INFO(f"Number of source files found in target not copied to target directory: {notCopiedFoundFiles}", False)
+        LogFileWriter.Writer.LOG_INFO(f"STATISTICS FOR {sourceDirectory} : ", 'QuickFolderSynchroAdvanced.py', 343, False)
+        LogFileWriter.Writer.LOG_INFO(f"Number of total items found in source directory: {foundFilesAndDir}", 'QuickFolderSynchroAdvanced.py', 343, False)
+        LogFileWriter.Writer.LOG_INFO(f"Number of files found in source directory: {foundFiles}", 'QuickFolderSynchroAdvanced.py', 343, False)
+        LogFileWriter.Writer.LOG_INFO(f"Number of directories found in source directory: {foundDirectories}", 'QuickFolderSynchroAdvanced.py', 343, False)
+        LogFileWriter.Writer.LOG_INFO(f"Number of source files found in target directory: {copiedFoundFiles + notCopiedFoundFiles}", 'QuickFolderSynchroAdvanced.py', 343, False)
+        LogFileWriter.Writer.LOG_INFO(f"Number of source files copied to target directory: {copiedFoundFiles + copiedNotFoundFiles}", 'QuickFolderSynchroAdvanced.py', 343, False)
+        LogFileWriter.Writer.LOG_INFO(f"Number of source files found in target not copied to target directory: {notCopiedFoundFiles}", 'QuickFolderSynchroAdvanced.py', 343, False)
             
          
         # The destination is traversed to remove files that do not exist in the source.
-        logger.LOG_INFO(f"\nSEARCHING FOR FILES IN {targetDirectory} : ", False)
+        LogFileWriter.Writer.LOG_INFO(f"SEARCHING FOR FILES IN {targetDirectory} : ", 'QuickFolderSynchroAdvanced.py', 354, False)
 
         # If there are no files in the destination directory, we print a message and skip to the end of the script, which is to print the statistics. 
         # Otherwise, we continue with the synchronization process.
         if len(os.listdir(targetDirectory)) == 0 :
-            logger.LOG_INFO(f"There are no files in {targetDirectory} : ", False)  
+
+            LogFileWriter.Writer.LOG_INFO(f"There are no files in {targetDirectory} : ", 'QuickFolderSynchroAdvanced.py', 359, False)  
 
         else:
             
@@ -374,7 +375,7 @@ try :
                 try :
 
                     # Printing a message indicating that the file is being processed, both in the console and in the log file.
-                    logger.LOG_INFO(f"Processing {targetDirectory.upper()} : {fileItem}", False)
+                    LogFileWriter.Writer.LOG_INFO(f"Processing {targetDirectory.upper()} : {fileItem}", 'QuickFolderSynchroAdvanced.py', 372, False)
 
                     # Incrementing the total number of files and directories found in the destination directory, including directories, which will be processed later in the script. 
                     # This variable is used for statistics at the end of the script.
@@ -404,7 +405,7 @@ try :
                             targetFoundFilesNotInSource += 1
 
                             # Printing a message indicating that the file exists in the destination directory but does not exist in the source directory, so it is deleted, both in the console and in the log file.
-                            logger.LOG_INFO(f"{targetDirectory.upper()} : File {targetPath} exists in the destination directory but does not exist in the source directory, it is deleted\n")
+                            LogFileWriter.Writer.LOG_INFO(f"{targetDirectory.upper()} : File {targetPath} exists in the destination directory but does not exist in the source directory, it is deleted", 'QuickFolderSynchroAdvanced.py', 402, True)
 
                             # Deleting the file in the destination directory, since it does not exist in the source directory
                             os.remove(targetPath)
@@ -415,7 +416,7 @@ try :
                             targetFoundDirNotInSource += 1
 
                             # Printing a message indicating that the directory exists in the destination directory but does not exist in the source directory, so it is deleted
-                            logger.LOG_INFO(f"{targetDirectory.upper()} : Directory {targetPath} exists in the destination directory but does not exist in the source directory, it is deleted")
+                            LogFileWriter.Writer.LOG_INFO(f"{targetDirectory.upper()} : Directory {targetPath} exists in the destination directory but does not exist in the source directory, it is deleted", 'QuickFolderSynchroAdvanced.py', 413, True)
 
                             # Deleting the directory in the destination directory
                             shutil.rmtree(targetPath)
@@ -431,64 +432,66 @@ try :
 
         # Printing the statistics for the destination directory, including the total number of files and directories found in the destination directory, the number of files found in the destination directory, the number of files found in the destination directory but not in the source directory, the number of directories found in the destination directory but not in the source directory, and the number of files and directories deleted from the destination directory. 
         # These statistics are printed only in the log file.
-        logger.LOG_INFO(f"\nSTATISTICS FOR {targetDirectory} : " , False)
-        logger.LOG_INFO(f"Total files and directories in target directory: {targetFoundFilesAndDir}" , False)
-        logger.LOG_INFO(f"Files found in target directory: {targetFoundFiles}" , False)
-        logger.LOG_INFO(f"Directories found in target directory: {targetFoundDirectories}" , False)
-        logger.LOG_INFO(f"Files found in target directory but not in source directory then deleted : {targetFoundFilesNotInSource}" , False)
-        logger.LOG_INFO(f"Directories found in target directory but not in source directory then deleted : {targetFoundDirNotInSource}" , False)
-        logger.LOG_INFO(f"Files and directories deleted from source directory: {targetDeletedFilesAndDir}", False)
+        LogFileWriter.Writer.LOG_INFO(f"STATISTICS FOR {targetDirectory} : ", 'QuickFolderSynchroAdvanced.py', 429, False)
+        LogFileWriter.Writer.LOG_INFO(f"Total files and directories in target directory: {targetFoundFilesAndDir}", 'QuickFolderSynchroAdvanced.py', 429, False)
+        LogFileWriter.Writer.LOG_INFO(f"Files found in target directory: {targetFoundFiles}", 'QuickFolderSynchroAdvanced.py', 429, False)
+        LogFileWriter.Writer.LOG_INFO(f"Directories found in target directory: {targetFoundDirectories}", 'QuickFolderSynchroAdvanced.py', 429, False)
+        LogFileWriter.Writer.LOG_INFO(f"Files found in target directory but not in source directory then deleted : {targetFoundFilesNotInSource}", 'QuickFolderSynchroAdvanced.py', 429, False)
+        LogFileWriter.Writer.LOG_INFO(f"Directories found in target directory but not in source directory then deleted : {targetFoundDirNotInSource}", 'QuickFolderSynchroAdvanced.py', 429, False)
+        LogFileWriter.Writer.LOG_INFO(f"Files and directories deleted from source directory: {targetDeletedFilesAndDir}", 'QuickFolderSynchroAdvanced.py', 429, False)
 
 
-    # We trace the origin in search of directories
-    # The directory exists in Destination, already verified
-    # This is done after processing the files, so we are sure that the directories in the destination directory that do not exist in the source directory have already been deleted, so we can be sure that all the directories that exist in the destination directory also exist in the source directory, and we can process them without worrying about deleting them later. 
-    # If we did this before processing the files, we would have to worry about deleting directories that do not exist in the source directory but exist in the destination directory, which would complicate the script and make it less efficient.
-    # The recursive execution of the script for the directories is done at the end of the script, so we have already processed all the files in the source and destination directories
-    # It has been taken outside the with statement because we want to be sure that the log file is closed before we start the recursive execution of the script for the directories, since the recursive execution of the script for the directories will also write to the log file, and if we do not close the log file before starting the recursive execution of the script for the directories, we may have problems with concurrent access to the log file, which could cause errors or inconsistencies in the log file. 
-    # By closing the log file before starting the recursive execution of the script for the directories, we can be sure that there are no problems with concurrent access to the log file, and we can be sure that all the log messages are written correctly to the log file.
-    for fileItem in sorted(os.listdir(sourceDirectory)) :
+        # We trace the origin in search of directories
+        # The directory exists in Destination, already verified
+        # This is done after processing the files, so we are sure that the directories in the destination directory that do not exist in the source directory have already been deleted, so we can be sure that all the directories that exist in the destination directory also exist in the source directory, and we can process them without worrying about deleting them later. 
+        # If we did this before processing the files, we would have to worry about deleting directories that do not exist in the source directory but exist in the destination directory, which would complicate the script and make it less efficient.
+        # The recursive execution of the script for the directories is done at the end of the script, so we have already processed all the files in the source and destination directories
+        # It has been taken outside the with statement because we want to be sure that the log file is closed before we start the recursive execution of the script for the directories, since the recursive execution of the script for the directories will also write to the log file, and if we do not close the log file before starting the recursive execution of the script for the directories, we may have problems with concurrent access to the log file, which could cause errors or inconsistencies in the log file. 
+        # By closing the log file before starting the recursive execution of the script for the directories, we can be sure that there are no problems with concurrent access to the log file, and we can be sure that all the log messages are written correctly to the log file.
+        for fileItem in sorted(os.listdir(sourceDirectory)) :
 
-        try :
+            try :
 
-            # For each SOURCE file, the name is extracted
-            sourceName = fileItem
-            sourcePath = os.path.join(sourceDirectory, sourceName)
-
-            # If the file is a directory, we call the script recursively for that directory. 
-            # If it is not a directory, it has already been processed in the previous steps of the script, so it is skipped.
-            if os.path.isdir(sourcePath) :
+                # For each SOURCE file, the name is extracted
+                sourceName = fileItem
+                sourcePath = os.path.join(sourceDirectory, sourceName)
 
                 # The path of the directory in the destination directory is constructed
                 targetPath = os.path.join(targetDirectory, sourceName)
- 
-                # The next directory is going to be processed
-                logger.LOG_INFO(f"\nThe directory {sourcePath} is going to be processed")
 
-                # We call the script recursively for the directory blocking the execution until it finishes, so that we can be sure that the synchronization of the directory is finished before continuing with the next directory, and we can be sure that the statistics are printed at the end of the script, and we do not have to worry about printing them for each recursive execution, which would complicate the script and make it less efficient. 
-                # If we did this without blocking the execution, we would have to worry about printing the statistics for each recursive execution, which would complicate the script and make it less efficient.
-                # The call to subprocess.run is done outside the with statement, so we can be sure that the log file is closed before we start the recursive execution of the script for the directories, since the recursive execution of the script for the directories will also write to the log file, and if we do not close the log file before starting the recursive execution of the script for the directories, we may have problems with concurrent access to the log file, which could cause errors or inconsistencies in the log file. 
-                # By closing the log file before starting the recursive execution of the script for the directories, we can be sure that there are no problems with concurrent access to the log file, and we can be sure that all the log messages are written correctly to the log file.
-                # And in a new environment with our custom brand name, so that we can check if the script is being executed recursively in the child execution, and we can skip the confirmation of the destination directory and the printing of the statistics in the child execution, since they are only printed at the end of the script, and we want to print them only once at the end of the script, not for each recursive execution.
-                # Depending on whether the script is running as an executable (PyInstaller) or as a normal .py script, we call it with the appropriate arguments. 
-                # If it is running as an executable, we call it with sys.executable, which is the path to the executable, and the source and target paths as arguments. 
-                # If it is running as a normal .py script, we call it with sys.executable, which is the path to the Python interpreter, and sys.argv[0], which is the path to the script, and the source and target paths as arguments. 
-                # In both cases, we pass the new environment with our custom brand name to indicate that it is a recursive execution, so that we can skip the confirmation of the destination directory and the printing of the statistics in the child execution.
+                # If the file is a directory, we call the script recursively for that directory. 
+                # If it is not a directory, it has already been processed in the previous steps of the script, so it is skipped.
+                if os.path.isdir(sourcePath) :
+    
+                    # The next directory is going to be processed
+                    LogFileWriter.Writer.LOG_INFO(f"\nThe directory {sourcePath} is going to be processed", 'QuickFolderSynchroAdvanced.py', 461, False)
 
-                # It is running as an executable (PyInstaller)
-                if getattr(sys, 'frozen', False): subprocess.run([sys.executable, sourcePath, targetPath], env=new_env, stderr=subprocess.DEVNULL)
-                # It is running as an executable (Niutka)
-                elif "__compiled__" in globals() : subprocess.run([sys.argv[0], sourcePath, targetPath], env=new_env, stderr=subprocess.DEVNULL)
-                # It's running as a normal .py script
-                else: subprocess.run([sys.executable, sys.argv[0], sourcePath, targetPath], env=new_env, stderr=subprocess.DEVNULL)
+                    # We call the script recursively for the directory blocking the execution until it finishes, so that we can be sure that the synchronization of the directory is finished before continuing with the next directory, and we can be sure that the statistics are printed at the end of the script, and we do not have to worry about printing them for each recursive execution, which would complicate the script and make it less efficient. 
+                    # If we did this without blocking the execution, we would have to worry about printing the statistics for each recursive execution, which would complicate the script and make it less efficient.
+                    # The call to subprocess.run is done outside the with statement, so we can be sure that the log file is closed before we start the recursive execution of the script for the directories, since the recursive execution of the script for the directories will also write to the log file, and if we do not close the log file before starting the recursive execution of the script for the directories, we may have problems with concurrent access to the log file, which could cause errors or inconsistencies in the log file. 
+                    # By closing the log file before starting the recursive execution of the script for the directories, we can be sure that there are no problems with concurrent access to the log file, and we can be sure that all the log messages are written correctly to the log file.
+                    # And in a new environment with our custom brand name, so that we can check if the script is being executed recursively in the child execution, and we can skip the confirmation of the destination directory and the printing of the statistics in the child execution, since they are only printed at the end of the script, and we want to print them only once at the end of the script, not for each recursive execution.
+                    # Depending on whether the script is running as an executable (PyInstaller) or as a normal .py script, we call it with the appropriate arguments. 
+                    # If it is running as an executable, we call it with sys.executable, which is the path to the executable, and the source and target paths as arguments. 
+                    # If it is running as a normal .py script, we call it with sys.executable, which is the path to the Python interpreter, and sys.argv[0], which is the path to the script, and the source and target paths as arguments. 
+                    # In both cases, we pass the new environment with our custom brand name to indicate that it is a recursive execution, so that we can skip the confirmation of the destination directory and the printing of the statistics in the child execution.
 
-        except AppError as error :
-            AppError_handler(error)
-            continue
+                    # It is running as an executable (PyInstaller)
+                    if getattr(sys, 'frozen', False): subprocess.run([sys.executable, sourcePath, targetPath], env=new_env, stderr=subprocess.DEVNULL)
+                    # It is running as an executable (Niutka)
+                    elif "__compiled__" in globals() : subprocess.run([sys.argv[0], sourcePath, targetPath], env=new_env, stderr=subprocess.DEVNULL)
+                    # It's running as a normal .py script
+                    else: subprocess.run([sys.executable, sys.argv[0], sourcePath, targetPath], env=new_env, stderr=subprocess.DEVNULL)
+
+            except AppError as error :
+                AppError_handler(error)
+                continue
         
-        except Exception as error :
-            general_exception_handler(error)
-            continue
+            except Exception as error :
+                general_exception_handler(error)
+                continue
+            
+    except Exception as error : general_exception_handler(error)
 
 except AppError as error : AppError_handler(error)
 

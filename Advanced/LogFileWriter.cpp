@@ -24,7 +24,7 @@ namespace py = pybind11;
 
 
 // Log file name defined as constant
-static const char* LOG_FILENAME = "QuickFolderSynchroPRO.log";
+static const char* LOG_FILENAME = "QuickFolderSynchroAdvanced.log";
 
 // Translates your internal enum values into human-readable text for your log file.
 // It is used to generate the string that will be stored with respect to the enum
@@ -40,6 +40,7 @@ LogFileWriter::LogFileWriter() {
     worker_thread = std::thread(&LogFileWriter::process_logs, this);
 }
 
+// Destructor
 LogFileWriter::~LogFileWriter() {
 
     // we set the should_exit flag
@@ -60,6 +61,12 @@ LogFileWriter::~LogFileWriter() {
 // Function that sets the minimum level from which logs will be saved
 void LogFileWriter::set_min_level(int p_level) { min_level = p_level; }
 
+// Function that indicate whether the log file should be reset
+void LogFileWriter::resetLogFile() {
+    std::ofstream file(LOG_FILENAME, std::ios::trunc);
+    file.close();
+}
+
 
 // C++ method to put an item in the FIFO of LogEntry and wake up the process_logs method to write the item
 void LogFileWriter::_log_internal(LogLevel p_level, const std::string &p_msg, const std::string& p_file, int p_line, bool isStdOutput) {
@@ -69,7 +76,7 @@ void LogFileWriter::_log_internal(LogLevel p_level, const std::string &p_msg, co
 
     // code block
     {
-        // Mutex management
+        // It ensures that only one thread of execution accesses the queue; it would block if another thread of execution were accessing it.
         std::lock_guard<std::mutex> lock(queue_mutex);
 
         // Insert LogEntry object into FIFO
@@ -84,11 +91,8 @@ void LogFileWriter::_log_internal(LogLevel p_level, const std::string &p_msg, co
 // Method for writing to the destination file
 void LogFileWriter::process_logs() {    
 
-    // Version C++ only. Just creating the log file by LOG_FILENAME
-    std::string path = LOG_FILENAME;
-
     // Version C++ only
-    std::ofstream file(path, std::ios::trunc);
+    std::ofstream file(LOG_FILENAME, std::ios::app);
 
     // We want the thread to be available throughout the entire life.
     while (true) {
@@ -181,11 +185,12 @@ PYBIND11_MODULE(LogFileWriter, m) {
     
     //This binds the functions for logging
     .def("set_min_level", &LogFileWriter::set_min_level)
-    .def_static("LOG_DEBUG", [](std::string message, bool isStdOutput=true) { LOG_DEBUG(message, isStdOutput); }, py::arg("message"), py::arg("isStdOutput") = true)
-    .def_static("LOG_INFO", [](std::string message, bool isStdOutput=true) { LOG_INFO(message, isStdOutput); }, py::arg("message"), py::arg("isStdOutput") = true)
-    .def_static("LOG_WARN", [](std::string message, bool isStdOutput=true) { LOG_WARN(message, isStdOutput); }, py::arg("message"), py::arg("isStdOutput") = true)
-    .def_static("LOG_ERROR", [](std::string message, bool isStdOutput=true) { LOG_ERROR(message, isStdOutput); }, py::arg("message"), py::arg("isStdOutput") = true)
-    .def_static("LOG_FATAL", [](std::string message, bool isStdOutput=true) { LOG_FATAL(message, isStdOutput); }, py::arg("message"), py::arg("isStdOutput") = true);
+    .def("resetLogFile", &LogFileWriter::resetLogFile)
+    .def_static("LOG_DEBUG", [](std::string message, const std::string& p_file, int p_line, bool isStdOutput=true) { LOG_DEBUG(message, p_file, p_line, isStdOutput); }, py::arg("message"), py::arg("p_file")=__FILE__, py::arg("p_line")=__LINE__, py::arg("isStdOutput") = true)
+    .def_static("LOG_INFO", [](std::string message, const std::string& p_file, int p_line, bool isStdOutput=true) { LOG_INFO(message, p_file, p_line, isStdOutput); }, py::arg("message"), py::arg("p_file")=__FILE__, py::arg("p_line")=__LINE__, py::arg("isStdOutput") = true)
+    .def_static("LOG_WARN", [](std::string message, const std::string& p_file, int p_line, bool isStdOutput=true) { LOG_WARN(message, p_file, p_line, isStdOutput); }, py::arg("message"), py::arg("p_file")=__FILE__, py::arg("p_line")=__LINE__, py::arg("isStdOutput") = true)
+    .def_static("LOG_ERROR", [](std::string message, const std::string& p_file, int p_line, bool isStdOutput=true) { LOG_ERROR(message, p_file, p_line, isStdOutput); }, py::arg("message"), py::arg("p_file")=__FILE__, py::arg("p_line")=__LINE__, py::arg("isStdOutput") = true)
+    .def_static("LOG_FATAL", [](std::string message, const std::string& p_file, int p_line, bool isStdOutput=true) { LOG_FATAL(message, p_file, p_line, isStdOutput); }, py::arg("message"), py::arg("p_file")=__FILE__, py::arg("p_line")=__LINE__, py::arg("isStdOutput") = true);
 
     // This binds the enum values
     py::enum_<LogFileWriter::LogLevel>(m, "LogLevel")
