@@ -26,10 +26,11 @@ import signal
 import psutil
 from pathlib import Path
 
+# The module with the C++ class is imported
 import LogFileWriter
 
 
-#Base exception for the application errors.
+# Base exception for the application errors.
 class AppError(Exception):
     """Base exception for application errors."""
 
@@ -78,7 +79,7 @@ def general_exception_handler(error) :
             
         # If there is an error code, we display it
         if isinstance(error.errno, int): print(" Error Code :", str(error.errno))
-        else : print("\nNo numeric error code was found in the exception, exited with -1")
+        else : print("No numeric error code was found in the exception, exited with -1")
 
 
 
@@ -150,8 +151,6 @@ def signal_handler(sig, frame, isRecursiveExecution, sourceDirectory):
 # All the code will be inside a try block, so that if any command fails, the error is handled eficiently
 try :
 
-    logger = None
-
     # We initialize the variable that will hold the new environment with our custom brand name, which is used to check if the script is being executed recursively. 
     new_env = None
 
@@ -172,8 +171,7 @@ try :
         LogFileWriter.Writer.get_instance().resetLogFile()
 
     # We set the boolean variable to indicate that we are in a recursive execution
-    else : 
-        isRecursiveExecution = True
+    else : isRecursiveExecution = True
 
     # Variables for task statistics
 
@@ -464,7 +462,7 @@ try :
                 if os.path.isdir(sourcePath) :
     
                     # The next directory is going to be processed
-                    LogFileWriter.Writer.LOG_INFO(f"\nThe directory {sourcePath} is going to be processed", 'QuickFolderSynchroAdvanced.py', 461, False)
+                    LogFileWriter.Writer.LOG_INFO(f"The directory {sourcePath} is going to be processed", 'QuickFolderSynchroAdvanced.py', 461, False)
 
                     # We call the script recursively for the directory blocking the execution until it finishes, so that we can be sure that the synchronization of the directory is finished before continuing with the next directory, and we can be sure that the statistics are printed at the end of the script, and we do not have to worry about printing them for each recursive execution, which would complicate the script and make it less efficient. 
                     # If we did this without blocking the execution, we would have to worry about printing the statistics for each recursive execution, which would complicate the script and make it less efficient.
