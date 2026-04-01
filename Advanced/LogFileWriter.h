@@ -4,12 +4,13 @@
 //Including <queue> gives you access to std::queue, which is a FIFO (First-In, First-Out) container adapter
 #include <queue>
 
-// Needed by linux g++ compiler
+// Needed by linux g++ compiler in .h file
 #include <string>
 #include <condition_variable>
 #include <thread>
 #include <atomic>
 
+// LogFileWriter Class
 class LogFileWriter {
 
     public:
@@ -20,11 +21,12 @@ class LogFileWriter {
         // Sets the minimum log level below which logs are not stored
         void set_min_level(int p_level);
 
-        // Indicate whether the log file should be reset
+        // Perform a log file reset.
         void resetLogFile();
 
         // LogFileWriter is a singleton; this is the method that returns the single instance of the object.
         // If it is nullptr, it is instantiated.
+        // This method should be used instead of the constructor to get the object
         static LogFileWriter* get_singleton() { 
             if (singleton == nullptr) {
                 singleton = new LogFileWriter(); 
@@ -37,6 +39,7 @@ class LogFileWriter {
         ~LogFileWriter();
 
         // Internal C++ macro-friendly log. Fill the queue with a message and associated information
+        // It must be public because it is called from macros.
         void _log_internal(LogLevel p_level, const std::string& p_msg, const std::string& p_file, int p_line, bool isStdOutput);
 
     private:
@@ -54,7 +57,8 @@ class LogFileWriter {
         // Singleton pointer
         static inline LogFileWriter* singleton = nullptr;
 
-        // Private methods
+        // Private methods...
+
         // Method that manages the writing of a log when it occurs
         void process_logs();
 

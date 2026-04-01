@@ -40,6 +40,7 @@ LogFileWriter::LogFileWriter() {
     worker_thread = std::thread(&LogFileWriter::process_logs, this);
 }
 
+
 // Destructor
 LogFileWriter::~LogFileWriter() {
 
@@ -61,10 +62,19 @@ LogFileWriter::~LogFileWriter() {
 // Function that sets the minimum level from which logs will be saved
 void LogFileWriter::set_min_level(int p_level) { min_level = p_level; }
 
+
 // Function that indicate whether the log file should be reset
 void LogFileWriter::resetLogFile() {
-    std::ofstream file(LOG_FILENAME, std::ios::trunc);
-    file.close();
+    try {
+        std::ofstream file(LOG_FILENAME, std::ios::trunc);
+        file.close();
+    } catch (const std::ios_base::failure& e) {
+
+        std::cerr << "Critical file error : " << e.what() << std::endl;
+
+        //We re-throw a more descriptive exception for Python (pybind11 will catch it)
+        throw std::runtime_error(std::string("Could not open or write to : ") + LOG_FILENAME);
+    }
 }
 
 
@@ -89,53 +99,66 @@ void LogFileWriter::_log_internal(LogLevel p_level, const std::string &p_msg, co
 
 
 // Method for writing to the destination file
-void LogFileWriter::process_logs() {    
+void LogFileWriter::process_logs() {   
+    
+    try {
 
-    // Version C++ only
-    std::ofstream file(LOG_FILENAME, std::ios::app);
+        // Version C++ only
+        std::ofstream file(LOG_FILENAME, std::ios::app);
 
-    // We want the thread to be available throughout the entire life.
-    while (true) {
+        // We want the thread to be available throughout the entire life.
+        while (true) {
 
-        LogEntry entry;
+            LogEntry entry;
 
-        // In multithreading programming, the curly braces {} limit the "scope" of the mutex
-        {
-            // the worker thread has exclusive access to log_queue
-            std::unique_lock<std::mutex> lock(queue_mutex);
+            // In multithreading programming, the curly braces {} limit the "scope" of the mutex
+            {
+                // the worker thread has exclusive access to log_queue
+                std::unique_lock<std::mutex> lock(queue_mutex);
 
-            // cv.wait puts the thread into a deep sleep, freeing up processor resources until something interesting happens
-            cv.wait(lock, [this] { return !log_queue.empty() || should_exit; });
+                // cv.wait puts the thread into a deep sleep, freeing up processor resources until something interesting happens
+                cv.wait(lock, [this] { return !log_queue.empty() || should_exit; });
 
-            // This is your safe exit protocol.
-            if (should_exit && log_queue.empty()) break;
+                // This is your safe exit protocol.
+                if (should_exit && log_queue.empty()) break;
 
-            // performing a "transfer of ownership" instead of an expensive copy.
-            entry = std::move(log_queue.front());
+                // performing a "transfer of ownership" instead of an expensive copy.
+                entry = std::move(log_queue.front());
 
-            // The node you just "emptied" with std::move is permanently removed from the queue's memory, making room for the next messages.
-            log_queue.pop();
+                // The node you just "emptied" with std::move is permanently removed from the queue's memory, making room for the next messages.
+                log_queue.pop();
+            }
+
+            // The String we want to display in the file is created in C++
+            std::ostringstream ss;
+            ss << "[" << entry.timestamp << "] "
+            << "[" << levels[entry.level] << "] "
+            << "[" << entry.file << ":" << entry.line << "] "
+            << entry.message;
+            std::string output = ss.str();
+
+            // Print to output error or fatal messages, other levels depends on entry.isStdOutput, only if entry.isStdOutput is true is printed
+            if (entry.level >= ERROR) std::cerr << output << std::endl;
+            else if (entry.isStdOutput) std::cout << output << std::endl;
+
+            // Everything is Writing to file
+            if (file.is_open()) {
+                file << output << std::endl;
+                file.flush();
+            }
         }
 
-        // The String we want to display in the file is created in C++
-        std::ostringstream ss;
-        ss << "[" << entry.timestamp << "] "
-        << "[" << levels[entry.level] << "] "
-        << "[" << entry.file << ":" << entry.line << "] "
-        << entry.message;
-        std::string output = ss.str();
+        file.close();
 
-        // Print to output error or fatal messages, other levels depends on entry.isStdOutput, only if entry.isStdOutput is true is printed
-        if (entry.level >= ERROR) std::cerr << output << std::endl;
-        else if (entry.isStdOutput) std::cout << output << std::endl;
+    } catch (const std::ios_base::failure& e) {
 
-        // Everything is Writing to file
-        if (file.is_open()) {
-            file << output << std::endl;
-            file.flush();
-        }
+        std::cerr << "Critical file error : " << e.what() << std::endl;
+
+        //We re-throw a more descriptive exception for Python (pybind11 will catch it)
+        throw std::runtime_error(std::string("Could not open or write to : ") + LOG_FILENAME);
     }
 }
+
 
 // Get the current date professionally
 std::string LogFileWriter::get_timestamp() {
@@ -183,9 +206,10 @@ PYBIND11_MODULE(LogFileWriter, m) {
     // In Python, you will get an object like ogger = LogFileWriter.Writer.get_instance()
     .def_static("get_instance", &LogFileWriter::get_singleton, py::return_value_policy::reference)
     
-    //This binds the functions for logging
+    // Non-static methods available in Python
     .def("set_min_level", &LogFileWriter::set_min_level)
     .def("resetLogFile", &LogFileWriter::resetLogFile)
+    // Static methods available in Python; they call macros
     .def_static("LOG_DEBUG", [](std::string message, const std::string& p_file, int p_line, bool isStdOutput=true) { LOG_DEBUG(message, p_file, p_line, isStdOutput); }, py::arg("message"), py::arg("p_file")=__FILE__, py::arg("p_line")=__LINE__, py::arg("isStdOutput") = true)
     .def_static("LOG_INFO", [](std::string message, const std::string& p_file, int p_line, bool isStdOutput=true) { LOG_INFO(message, p_file, p_line, isStdOutput); }, py::arg("message"), py::arg("p_file")=__FILE__, py::arg("p_line")=__LINE__, py::arg("isStdOutput") = true)
     .def_static("LOG_WARN", [](std::string message, const std::string& p_file, int p_line, bool isStdOutput=true) { LOG_WARN(message, p_file, p_line, isStdOutput); }, py::arg("message"), py::arg("p_file")=__FILE__, py::arg("p_line")=__LINE__, py::arg("isStdOutput") = true)
