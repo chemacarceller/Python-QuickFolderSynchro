@@ -82,11 +82,11 @@ class LogFileWriter {
         // Final piece to the puzzle for a high-performance Producer-Consumer system!
         std::condition_variable cv;
 
-        // object that actually runs your code in parallel.
-        std::thread worker_thread;
-
         //std::atomic<int> ensures that the operation happens as a single, indivisible unit.
         std::atomic<bool> should_exit{false};
+
+        // object that actually runs your code in parallel.
+        std::thread worker_thread;        
 
 };
 

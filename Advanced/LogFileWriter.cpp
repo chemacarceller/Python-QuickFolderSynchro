@@ -36,7 +36,9 @@ LogFileWriter::LogFileWriter() {
     // Setting this object as singleton
     singleton = this;
 
-    // Launching a background thread that runs the process_logs member function when he is woken up
+    // Lanza un nuevo hilo de ejecución (thread). 
+    // Empieza a ejecutar process_logs.
+    // Guardamos referencia al hilo de ejecución en la variable worker_thread
     worker_thread = std::thread(&LogFileWriter::process_logs, this);
 }
 
@@ -50,8 +52,7 @@ LogFileWriter::~LogFileWriter() {
     // Awaken all the threads at once.
     cv.notify_all();
 
-    // He blocks the main thread (Godot's) and says:
-    // "Wait a moment, don't close the application yet; we have to wait for the worker thread to finish what it's doing and close properly."
+    // The destructor stops and waits for the worker_thread to finish its function
     if (worker_thread.joinable()) worker_thread.join();
 
     // When we close, we also set the pointer to nullptr
@@ -103,7 +104,7 @@ void LogFileWriter::process_logs() {
     
     try {
 
-        // Version C++ only
+        // We open the log file to add content
         std::ofstream file(LOG_FILENAME, std::ios::app);
 
         // We want the thread to be available throughout the entire life.
@@ -112,20 +113,23 @@ void LogFileWriter::process_logs() {
             LogEntry entry;
 
             // In multithreading programming, the curly braces {} limit the "scope" of the mutex
+            // It will only block for the exact time necessary to retrieve the item from the queue; it does not wait for it to be written to a file.
             {
-                // the worker thread has exclusive access to log_queue
+                // Unique access to the log message queue is reserved
                 std::unique_lock<std::mutex> lock(queue_mutex);
 
-                // cv.wait puts the thread into a deep sleep, freeing up processor resources until something interesting happens
+                // It goes to sleep if the queue is empty and it shouldn't leave, and it clears the message queue until it is woken up.
+                // Once woken up, if there are messages in the queue, it will block the queue again.
                 cv.wait(lock, [this] { return !log_queue.empty() || should_exit; });
 
-                // This is your safe exit protocol.
+                // It is used to exit the infinite loop when you decide to exit with should_exit
                 if (should_exit && log_queue.empty()) break;
 
-                // performing a "transfer of ownership" instead of an expensive copy.
+                // Access the first message in the queue and move it to the entry variable
+                // This is more efficient than copying it since it's basically a pointer reassignment, setting the queue element's pointers to nullptr
                 entry = std::move(log_queue.front());
 
-                // The node you just "emptied" with std::move is permanently removed from the queue's memory, making room for the next messages.
+                // Remove the empty space and nullptr pointer from the first message in the queue
                 log_queue.pop();
             }
 
@@ -148,6 +152,7 @@ void LogFileWriter::process_logs() {
             }
         }
 
+        // Once we decided to exit, we closed the file.
         file.close();
 
     } catch (const std::ios_base::failure& e) {
