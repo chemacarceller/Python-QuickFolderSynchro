@@ -35,7 +35,9 @@ Testing:
 After testing all four versions, I obtained the following data:
 
 Compared to the version without C++ (Python only), the Basic version improves performance by 4.75%, the Advanced version by 6.03%, and the Advanced Plus version by 6.74%.
+
 Compared to the Basic (C++) version, the Advanced version improves performance by 1.16%, and the Advanced Plus version by 2.11%.
+
 Compared to the Advanced (C++) version, the Advanced Plus version improves performance by 0.96%.
 
 
@@ -77,5 +79,7 @@ Testing :
 Una vez testeadas las 4 versiones he obtenido los siguientes datos :
 
 Respecto a la version sin C++ (python only) la version Basic mejora el rendimiento en un 4.75%, la version Advanced en un 6.03% y la version Advanced Plus en un 6.74%
+
 Respecto a la version Basic (C++) la version Advanced mejora el rendimiento en un 1,16%, la versión Advanced Plus 2.11%
+
 Respecto a la version Advanced (C++) la version Advanced Plus mejora el rendimiento en un 0.96%
