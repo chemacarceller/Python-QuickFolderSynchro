@@ -30,7 +30,17 @@ Problem: Although it is a singleton, it is at the process level, but in this cas
 
 Advanced plus: The class used in Advanced is adapted to generate a singleton between processes, establishing a memory region where the only singleton instance is stored and accessible by any process, this implies a level jump in the C++ class
 
+Testing:
+
+After testing all four versions, I obtained the following data:
+
+Compared to the version without C++ (Python only), the Basic version improves performance by 4.75%, the Advanced version by 6.03%, and the Advanced Plus version by 6.74%.
+Compared to the Basic (C++) version, the Advanced version improves performance by 1.16%, and the Advanced Plus version by 2.11%.
+Compared to the Advanced (C++) version, the Advanced Plus version improves performance by 0.96%.
+
+
 ======================================================================
+
 
 Utilidad de sincronización rápida de carpetas escrita en python
 
@@ -60,4 +70,12 @@ Basic : La clase utilizada es una version Basic
 Advanced : La clase utilizada es una version avanzada que implementa un singleton, la clase se desarrolló para almacenar los juegos en Godot y ha sido adaptada a este script de Python
 Problema : Aunque es un singleton, lo es a nivel de proceso, pero en este caso se lanzan procesos de forma recursiva por lo que se instancia una clase singleton distinta para cada proceso
 
-Advanced plus : Se adapta la clase utilizada en Advanced para generar un singleton entre procesos, estableciendo una región de memoria donde se almacena la única instancia singleton siendo accesible por cualquier proceso, esto implica un salto de nivel en la clase C++
+Advanced Plus : Se adapta la clase utilizada en Advanced para generar un singleton entre procesos, estableciendo una región de memoria donde se almacena la única instancia singleton siendo accesible por cualquier proceso, esto implica un salto de nivel en la clase C++
+
+Testing :
+
+Una vez testeadas las 4 versiones he obtenido los siguientes datos :
+
+Respecto a la version sin C++ (python only) la version Basic mejora el rendimiento en un 4.75%, la version Advanced en un 6.03% y la version Advanced Plus en un 6.74%
+Respecto a la version Basic (C++) la version Advanced mejora el rendimiento en un 1,16%, la versión Advanced Plus 2.11%
+Respecto a la version Advanced (C++) la version Advanced Plus mejora el rendimiento en un 0.96%
