@@ -9,17 +9,16 @@
 #include <boost/interprocess/sync/interprocess_mutex.hpp>
 #include <boost/interprocess/sync/interprocess_condition.hpp>
 
-#include <atomic>
 #include <thread>
-#include <iostream>
-#include <iomanip>
-
 
 using namespace boost::interprocess;
 
 // An allocator is an object that manages how and where memory is reserved for your data.
-// Allocator for strings
+// The first parameter is the data type
+// The second one is the segment manager
 typedef allocator<char, managed_shared_memory::segment_manager> CharAlloc;
+
+// basic_string<T, CharTraits, Allocator> es la plantilla "madre" de todas las cadenas de texto.
 typedef basic_string<char, std::char_traits<char>, CharAlloc> shared_string;
 
 // Estructura de Log compatible
@@ -44,11 +43,11 @@ struct SharedLogState {
     SharedLogQueue log_queue;
     interprocess_mutex queue_mutex;
     interprocess_condition cv;
-    std::atomic<int> min_level;
-    std::atomic<bool> should_exit;
-    std::atomic<int> process_count = 0;
+    int min_level;
+    bool should_exit;
+    int process_count ;
 
-    SharedLogState(managed_shared_memory::segment_manager* sm) : log_queue(sm), min_level(0), should_exit(false) { process_count=0; }
+    SharedLogState(managed_shared_memory::segment_manager* sm) : log_queue(sm), min_level(0), should_exit(false), process_count(0) {}
 };
 
 // This class is a singleton for managing a log file in a way that uses a shared memory area between different processes
@@ -96,10 +95,7 @@ class LogFileWriter {
 
         // It will give us one singleton instance per process
         static LogFileWriter* get_singleton() { 
-            if (singleton == nullptr) {
-                singleton = new LogFileWriter(); 
-            }
-            
+            if (singleton == nullptr) singleton = new LogFileWriter(); 
             return singleton;
         }
         

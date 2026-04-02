@@ -2,6 +2,8 @@
 
 #include <fstream>
 #include <chrono>
+#include <iostream>
+#include <iomanip>
 
 // For using it in Python 
 #include <pybind11/pybind11.h>
@@ -122,13 +124,16 @@ void LogFileWriter::_log_internal(LogLevel p_level, const std::string& p_msg, co
 
 void LogFileWriter::process_logs() {
 
-    // Abrir el fichero de logs para añadir entradas
+    // Open the log file to add entries
     std::ofstream file(LOG_FILENAME, std::ios::app);
 
     while (true) {
 
+        // String to be written in the log file
         std::string output;
 
+        // In multithreading programming, the curly braces {} limit the "scope" of the mutex
+        // It will only block for the exact time necessary to retrieve the item from the queue; it does not wait for it to be written to a file.
         {
             // We block the FIFO queue to have exclusive access
             scoped_lock<interprocess_mutex> lock(state->queue_mutex);
@@ -155,7 +160,6 @@ void LogFileWriter::process_logs() {
 
             // We remove the entry from the FIFO queue
             state->log_queue.pop_front();
-
         }
 
          // Everything is Writing to file
@@ -170,20 +174,20 @@ void LogFileWriter::process_logs() {
 }
 
 
-// Get the current date professionally
+// Get the current date, it uses the chrono library
+// The <chrono> library is the standard C++ tool (since C++11) for handling time accurately
 std::string LogFileWriter::get_timestamp() {
 
-    // Using the modern C++ way to handle time
-    // 1. Get the current time point
+    // Get the current time point
     auto now = std::chrono::system_clock::now();
 
-    // 1. Get miliseconds
+    // Get miliseconds
     auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(now.time_since_epoch()) % 1000;
 
-    // 2. Convert to time_t for formatting
+    // Convert to time_t for formatting
     auto t = std::chrono::system_clock::to_time_t(now);
     
-    // 3. Thread-safe conversion to local time
+    // Thread-safe conversion to local time
     std::basic_ostringstream<char> ss;
 
     std::tm lt;
@@ -193,10 +197,10 @@ std::string LogFileWriter::get_timestamp() {
         localtime_r(&t, &lt);
     #endif
 
-    // 4. The line you provided: format and "pipe" into the stream
+    //  The line you provided: format and "pipe" into the stream
     ss << std::put_time(&lt, "%H:%M:%S")<< '.' << std::setfill('0') << std::setw(3) << ms.count();
 
-    // 5. Return as a std::string
+    // Return as a std::string
     return std::string(ss.str());    
 }
 
@@ -220,6 +224,7 @@ PYBIND11_MODULE(LogFileWriter, m) {
     .def("set_min_level", &LogFileWriter::set_min_level)
     .def("start_worker", &LogFileWriter::start_worker)
     .def("freeze", &LogFileWriter::freeze)
+    
     // Static methods available in Python; they call macros
     .def_static("LOG_DEBUG", [](std::string message, const std::string& p_file, int p_line, bool isStdOutput=true) { LOG_DEBUG(message, p_file, p_line, isStdOutput); }, py::arg("message"), py::arg("p_file")=__FILE__, py::arg("p_line")=__LINE__, py::arg("isStdOutput") = true)
     .def_static("LOG_INFO", [](std::string message, const std::string& p_file, int p_line, bool isStdOutput=true) { LOG_INFO(message, p_file, p_line, isStdOutput); }, py::arg("message"), py::arg("p_file")=__FILE__, py::arg("p_line")=__LINE__, py::arg("isStdOutput") = true)
